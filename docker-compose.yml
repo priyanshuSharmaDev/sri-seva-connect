@@ -22,6 +22,7 @@ services:
       target: migrate
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sri_seva_connect
+      DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@postgres:5432/sri_seva_connect
     depends_on:
       postgres:
         condition: service_healthy

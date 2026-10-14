@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: sri-seva-connect-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ISSUER
+        value: sri-seva-connect-api
+      - key: JWT_AUDIENCE
+        value: sri-seva-connect-mobile
+      - key: ACCESS_TOKEN_TTL
+        value: 15m
+      - key: REFRESH_TOKEN_DAYS
+        value: 30
+      - key: LOG_LEVEL
+        value: info
+      - key: TRUST_PROXY
+        value: true

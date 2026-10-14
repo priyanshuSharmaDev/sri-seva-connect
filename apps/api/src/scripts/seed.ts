@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { hash } from "bcryptjs";
 import { prisma } from "../db/client.js";
 

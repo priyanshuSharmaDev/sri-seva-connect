@@ -8,6 +8,8 @@ export default defineConfig({
     seed: "npm run db:seed"
   },
   datasource: {
-    url: env("DATABASE_URL")
+    // Keep application traffic on Neon's pooled URL while migrations use the
+    // direct connection required for session-level schema operations.
+    url: env("DATABASE_URL_UNPOOLED")
   }
 });

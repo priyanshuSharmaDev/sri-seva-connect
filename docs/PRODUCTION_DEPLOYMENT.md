@@ -19,7 +19,10 @@ commit the resulting values.
 
 Required secrets:
 
-- `DATABASE_URL` — PostgreSQL connection URL with TLS required.
+- `DATABASE_URL` — pooled PostgreSQL connection URL with TLS required, used by
+  normal API traffic.
+- `DATABASE_URL_UNPOOLED` — direct PostgreSQL connection URL with TLS required,
+  used only by Prisma migrations and administrative operations.
 - `JWT_SECRET` — at least 32 cryptographically random characters, unique to the
   environment.
 
@@ -68,6 +71,17 @@ Expected endpoints:
 - `GET /health/live` confirms that the Node process is alive.
 - `GET /health/ready` confirms PostgreSQL connectivity.
 - `GET /` returns non-sensitive service metadata.
+
+## Render test deployment
+
+The root `render.yaml` declares a free Docker web service in Render's Singapore
+region. Create a Blueprint from the repository and provide the Neon pooled
+`DATABASE_URL` when prompted. Render generates `JWT_SECRET`; never paste the
+direct `DATABASE_URL_UNPOOLED` into the runtime service.
+
+The free service is suitable only for development and internal testing because
+it can sleep when idle. Apply Prisma migrations separately with the direct Neon
+connection before deploying API versions that require schema changes.
 
 ## Release order
 

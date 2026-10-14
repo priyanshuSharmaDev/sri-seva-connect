@@ -29,5 +29,9 @@
     "@types/node": "^24.10.0",
     "prisma": "^7.10.0",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.1",
+    "@neon/env": "^1.6.2"
   }
 }

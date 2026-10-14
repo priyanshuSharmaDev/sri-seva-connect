@@ -13,6 +13,7 @@ COPY prisma ./prisma
 COPY apps/api ./apps/api
 COPY packages ./packages
 ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
+ENV DATABASE_URL_UNPOOLED=postgresql://build:build@127.0.0.1:5432/build
 RUN npm run db:generate && npm run build --workspace @ssc/api
 
 FROM dependencies AS migrate
