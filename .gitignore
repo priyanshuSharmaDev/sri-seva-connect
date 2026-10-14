@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+.env
+.env.*
+!.env.example
+dist/
+coverage/
+apps/api/src/generated/prisma/
+*.log
+*.db
+*.db-journal
+.DS_Store

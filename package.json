@@ -1,0 +1,33 @@
+{
+  "name": "sri-seva-connect",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "dev:api": "npm run dev --workspace @ssc/api",
+    "dev:mobile": "npm run start --workspace @ssc/mobile",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status",
+    "db:seed": "npm run seed --workspace @ssc/api",
+    "db:studio": "prisma studio"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "prisma": "^7.10.0",
+    "typescript": "^6.0.3"
+  }
+}

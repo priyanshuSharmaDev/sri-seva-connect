@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../apps/api/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  REGIONAL_MANAGER
+  STORE_MANAGER
+}
+
+enum Gender {
+  FEMALE
+  MALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
+}
+
+enum FamilyRelationship {
+  SPOUSE
+  SON
+  DAUGHTER
+  PARENT
+  SIBLING
+  CUSTOM
+}
+
+enum OccasionKind {
+  BIRTHDAY
+  WEDDING_ANNIVERSARY
+  FESTIVAL
+  CUSTOM
+  MEMORIAL
+}
+
+enum OccasionVisibility {
+  STANDARD
+  RESTRICTED
+}
+
+enum RecurrenceKind {
+  NONE
+  ANNUAL
+}
+
+enum ReminderState {
+  PENDING
+  SNOOZED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum ReminderSourceType {
+  OCCASION
+  FOLLOW_UP
+}
+
+enum CommunicationChannel {
+  PHONE
+  WHATSAPP
+  SMS
+  IN_PERSON
+  OTHER
+}
+
+enum FollowUpCadence {
+  WEEKLY
+  TWICE_WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+model Organization {
+  id          String                   @id @default(uuid()) @db.Uuid
+  name        String
+  timezone    String                   @default("Asia/Kolkata")
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  memberships OrganizationMembership[]
+  customers   Customer[]
+  auditEvents AuditEvent[]
+}
+
+model User {
+  id           String                   @id @default(uuid()) @db.Uuid
+  email        String                   @unique
+  fullName     String
+  passwordHash String
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  memberships  OrganizationMembership[]
+  refreshSessions RefreshSession[]
+}
+
+model RefreshSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  membershipId String   @db.Uuid
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership  OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([membershipId, revokedAt, expiresAt])
+}
+
+model OrganizationMembership {
+  id                    String          @id @default(uuid()) @db.Uuid
+  organizationId        String          @db.Uuid
+  userId                String          @db.Uuid
+  role                  Role
+  isActive              Boolean         @default(true)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  organization          Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedCustomers     Customer[]      @relation("AssignedManager")
+  customerShares        CustomerShare[]
+  communications        Communication[]
+  ownedReminders        Reminder[]
+  createdFollowUpSeries FollowUpSeries[]
+  devices               Device[]
+  refreshSessions       RefreshSession[]
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, role, isActive])
+}
+
+model Device {
+  id                     String                     @id @default(uuid()) @db.Uuid
+  organizationId         String                     @db.Uuid
+  membershipId           String                     @db.Uuid
+  installationId         String
+  platform               String
+  timezone               String
+  expoPushToken          String?
+  notificationsPermitted Boolean                    @default(false)
+  lastSyncedAt           DateTime?
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  membership             OrganizationMembership     @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, installationId])
+  @@index([organizationId, membershipId])
+}
+
+model Customer {
+  id                     String             @id @default(uuid()) @db.Uuid
+  organizationId         String             @db.Uuid
+  assignedManagerId      String             @db.Uuid
+  fullName               String
+  mobileNumber           String
+  normalizedMobileNumber String
+  alternatePhone         String?
+  email                  String?
+  gender                 Gender?
+  dateOfBirth            DateTime?          @db.Date
+  profession             String?
+  company                String?
+  address                String?
+  city                   String?
+  state                  String?
+  pinCode                String?
+  preferredLanguage      String?
+  notes                  String?
+  allowPhone             Boolean            @default(true)
+  allowWhatsapp          Boolean            @default(true)
+  allowSms               Boolean            @default(true)
+  version                Int                @default(1)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  deletedAt              DateTime?
+  organization           Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedManager        OrganizationMembership @relation("AssignedManager", fields: [assignedManagerId], references: [id])
+  shares                 CustomerShare[]
+  familyMembers          FamilyMember[]
+  occasions              Occasion[]
+  reminders              Reminder[]
+  communications         Communication[]
+  followUpSeries         FollowUpSeries[]
+
+  @@index([organizationId, assignedManagerId, deletedAt])
+  @@index([organizationId, normalizedMobileNumber])
+  @@index([organizationId, fullName])
+}
+
+model CustomerShare {
+  id         String                     @id @default(uuid()) @db.Uuid
+  customerId String                     @db.Uuid
+  managerId  String                     @db.Uuid
+  createdAt  DateTime                   @default(now())
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  customer   Customer                   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  manager    OrganizationMembership     @relation(fields: [managerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, managerId])
+  @@index([managerId, revokedAt, expiresAt])
+}
+
+model FamilyMember {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @db.Uuid
+  customerId         String             @db.Uuid
+  name               String
+  relationship       FamilyRelationship
+  customRelationship String?
+  dateOfBirth        DateTime?          @db.Date
+  phoneNumber        String?
+  profession         String?
+  anniversaryDate    DateTime?          @db.Date
+  notes              String?
+  version            Int                @default(1)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  occasions          Occasion[]
+
+  @@index([organizationId, customerId, deletedAt])
+}
+
+model Occasion {
+  id               String                @id @default(uuid()) @db.Uuid
+  organizationId   String                @db.Uuid
+  customerId       String                @db.Uuid
+  familyMemberId   String?               @db.Uuid
+  kind             OccasionKind
+  title            String
+  month            Int
+  day              Int
+  year             Int?
+  recurrence       RecurrenceKind        @default(ANNUAL)
+  timezone         String
+  managerNotes     String?
+  visibility       OccasionVisibility    @default(STANDARD)
+  version          Int                   @default(1)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  deletedAt        DateTime?
+  customer         Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  familyMember     FamilyMember?         @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  reminderRules    OccasionReminderRule[]
+
+  @@index([organizationId, customerId, deletedAt])
+  @@index([organizationId, month, day, deletedAt])
+}
+
+model OccasionReminderRule {
+  id            String    @id @default(uuid()) @db.Uuid
+  occasionId    String    @db.Uuid
+  offsetMinutes Int
+  enabled       Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  occasion      Occasion  @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+
+  @@unique([occasionId, offsetMinutes])
+}
+
+model Reminder {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @db.Uuid
+  customerId     String              @db.Uuid
+  ownerId        String              @db.Uuid
+  sourceType     ReminderSourceType
+  sourceId       String              @db.Uuid
+  occurrenceDate DateTime            @db.Date
+  offsetMinutes  Int
+  originalDueAt  DateTime
+  dueAt          DateTime
+  state          ReminderState       @default(PENDING)
+  title          String
+  dedupeKey      String              @unique
+  completedAt    DateTime?
+  version        Int                 @default(1)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  customer       Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  owner          OrganizationMembership @relation(fields: [ownerId], references: [id])
+
+  @@index([organizationId, ownerId, state, dueAt])
+  @@index([organizationId, sourceType, sourceId])
+}
+
+model Communication {
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String               @db.Uuid
+  customerId     String               @db.Uuid
+  managerId      String               @db.Uuid
+  channel        CommunicationChannel
+  occurredAt     DateTime
+  outcome        String?
+  notes          String?
+  createdAt      DateTime             @default(now())
+  customer       Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  manager        OrganizationMembership @relation(fields: [managerId], references: [id])
+
+  @@index([organizationId, customerId, occurredAt(sort: Desc)])
+}
+
+model FollowUpSeries {
+  id                    String             @id @default(uuid()) @db.Uuid
+  organizationId        String             @db.Uuid
+  customerId            String             @db.Uuid
+  managerId             String             @db.Uuid
+  cadence               FollowUpCadence
+  customIntervalMinutes Int?
+  nextOccurrenceAt      DateTime
+  active                Boolean            @default(true)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  customer              Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  manager               OrganizationMembership @relation(fields: [managerId], references: [id])
+
+  @@index([organizationId, managerId, active, nextOccurrenceAt])
+}
+
+model AuditEvent {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  actorId        String?       @db.Uuid
+  action         String
+  targetType     String
+  targetId       String
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, targetType, targetId, createdAt(sort: Desc)])
+}
+
+model DomainOutbox {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  eventType      String
+  aggregateType  String
+  aggregateId    String
+  payload        Json
+  createdAt      DateTime  @default(now())
+  processedAt    DateTime?
+  attempts       Int       @default(0)
+
+  @@index([processedAt, createdAt])
+}
+
+model SyncChange {
+  id             BigInt    @id @default(autoincrement())
+  organizationId String    @db.Uuid
+  entityType     String
+  entityId       String
+  operation      String
+  payload        Json?
+  audienceOwnerId String?   @db.Uuid
+  createdAt      DateTime  @default(now())
+
+  @@index([organizationId, id])
+  @@index([organizationId, audienceOwnerId, id])
+}
