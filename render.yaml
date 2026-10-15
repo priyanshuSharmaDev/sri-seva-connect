@@ -8,7 +8,6 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /health/ready
-    maxShutdownDelaySeconds: 30
     envVars:
       - key: NODE_ENV
         value: production
