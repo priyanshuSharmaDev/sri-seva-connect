@@ -29,5 +29,7 @@ services:
         value: Sri Seva Connect
       - key: LOG_LEVEL
         value: info
+      - key: CORS_ORIGINS
+        value: http://localhost:8081,http://127.0.0.1:8081
       - key: TRUST_PROXY
         value: true
