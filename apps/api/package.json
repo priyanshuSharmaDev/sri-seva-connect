@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "start": "node dist/server.js",
     "test": "vitest run",
+    "bootstrap:super-admin": "tsx src/scripts/bootstrap-super-admin.ts",
     "seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.0",
     "@types/pg": "^8.16.0",
+    "@types/supertest": "^7.2.1",
     "supertest": "^7.1.4",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",

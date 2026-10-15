@@ -52,8 +52,33 @@ npm run db:status
 ```
 
 Use `npm run db:seed` only in local/demo environments. Production organizations
-and initial administrators need a dedicated bootstrap process before launch;
+and initial administrators must use the dedicated bootstrap command below;
 never deploy the documented demo credentials.
+
+### Bootstrap the first Super Admin
+
+Run this only from a trusted local terminal whose `.env` points at the intended
+production Neon branch. The password prompt is masked and the plaintext value
+exists only in the current PowerShell process:
+
+```powershell
+$adminPassword = Read-Host "Choose a Super Admin password (12+ characters)" -AsSecureString
+$adminCredential = [System.Management.Automation.PSCredential]::new("unused", $adminPassword)
+$env:SUPER_ADMIN_EMAIL = "prabaladasa.bvks@gmail.com"
+$env:SUPER_ADMIN_FULL_NAME = "Prabala Dasa"
+$env:SUPER_ADMIN_PASSWORD = $adminCredential.GetNetworkCredential().Password
+npm run bootstrap:super-admin --workspace @ssc/api
+Remove-Item Env:SUPER_ADMIN_EMAIL, Env:SUPER_ADMIN_FULL_NAME, Env:SUPER_ADMIN_PASSWORD
+```
+
+The command is idempotent: rerunning it updates that administrator's name and
+password, preserves the organization, activates the `SUPER_ADMIN` membership,
+and revokes existing refresh sessions.
+
+Manager self-registration creates an inactive `REGIONAL_MANAGER` or
+`STORE_MANAGER` membership. A Super Admin must approve it through
+`POST /v1/admin/manager-registrations/:membershipId/approve` before login is
+allowed. Public registration can never request the `SUPER_ADMIN` role.
 
 ## Local container validation
 

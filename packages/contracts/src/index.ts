@@ -74,8 +74,16 @@ export const LoginSchema = z.object({
   password: z.string().min(8).max(128)
 });
 
+export const RegisterManagerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  email: z.email(),
+  password: z.string().min(12).max(128),
+  role: z.enum(["REGIONAL_MANAGER", "STORE_MANAGER"])
+});
+
 export type Role = z.infer<typeof RoleSchema>;
 export type CreateCustomerInput = z.infer<typeof CreateCustomerSchema>;
 export type CreateFamilyMemberInput = z.infer<typeof CreateFamilyMemberSchema>;
 export type CreateOccasionInput = z.infer<typeof CreateOccasionSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type RegisterManagerInput = z.infer<typeof RegisterManagerSchema>;

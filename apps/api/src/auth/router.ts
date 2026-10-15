@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Router } from "express";
-import { compare } from "bcryptjs";
-import { LoginSchema } from "@ssc/contracts";
+import { compare, hash } from "bcryptjs";
+import { LoginSchema, RegisterManagerSchema } from "@ssc/contracts";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { prisma } from "../db/client.js";
@@ -11,6 +11,10 @@ import { createAccessToken, type AccessClaims } from "./tokens.js";
 export const authRouter = Router();
 
 const RefreshSchema = z.object({ refreshToken: z.string().min(40).max(200) });
+
+function isUniqueConstraintError(error: unknown): error is { code: "P2002" } {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -25,6 +29,44 @@ async function issueSession(userId: string, membershipId: string, claims: Access
   });
   return { accessToken, refreshToken, expiresIn: env.ACCESS_TOKEN_TTL };
 }
+
+authRouter.post("/register", async (request, response) => {
+  const input = RegisterManagerSchema.parse(request.body);
+  const email = input.email.toLowerCase();
+  const organization = await prisma.organization.findUnique({ where: { id: env.ORGANIZATION_ID } });
+
+  if (!organization) {
+    throw new AppError(503, "REGISTRATION_NOT_READY", "Manager registration is not available yet");
+  }
+
+  try {
+    const passwordHash = await hash(input.password, 12);
+    await prisma.user.create({
+      data: {
+        email,
+        fullName: input.fullName,
+        passwordHash,
+        memberships: {
+          create: {
+            organizationId: organization.id,
+            role: input.role,
+            isActive: false
+          }
+        }
+      }
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AppError(409, "ACCOUNT_EXISTS", "An account with this email already exists");
+    }
+    throw error;
+  }
+
+  response.status(201).json({
+    status: "pending_approval",
+    message: "Your account is awaiting Super Admin approval"
+  });
+});
 
 authRouter.post("/login", async (request, response) => {
   const input = LoginSchema.parse(request.body);

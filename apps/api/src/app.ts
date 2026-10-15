@@ -7,6 +7,7 @@ import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
 import { prisma } from "./db/client.js";
 import { authRouter } from "./auth/router.js";
+import { adminRouter } from "./admin/router.js";
 import { customerRouter } from "./customers/router.js";
 import { dashboardRouter } from "./dashboard/router.js";
 import { errorHandler, notFoundHandler } from "./lib/errors.js";
@@ -53,6 +54,7 @@ const authRateLimit = rateLimit({
   legacyHeaders: false
 });
 app.use("/v1/auth", authRateLimit, authRouter);
+app.use("/v1/admin", adminRouter);
 app.use("/v1/customers", customerRouter);
 app.use("/v1/dashboard", dashboardRouter);
 app.use(notFoundHandler);

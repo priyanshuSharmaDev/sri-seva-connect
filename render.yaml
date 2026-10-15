@@ -23,6 +23,10 @@ services:
         value: 15m
       - key: REFRESH_TOKEN_DAYS
         value: 30
+      - key: ORGANIZATION_ID
+        value: 404c3836-64c4-4394-8f56-7de5322294d5
+      - key: ORGANIZATION_NAME
+        value: Sri Seva Connect
       - key: LOG_LEVEL
         value: info
       - key: TRUST_PROXY

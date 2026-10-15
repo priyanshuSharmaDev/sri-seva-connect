@@ -16,6 +16,8 @@ const EnvironmentSchema = z.object({
   JWT_AUDIENCE: z.string().min(1).default("sri-seva-connect-mobile"),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_DAYS: z.coerce.number().int().positive().default(30),
+  ORGANIZATION_ID: z.uuid().default("404c3836-64c4-4394-8f56-7de5322294d5"),
+  ORGANIZATION_NAME: z.string().trim().min(2).max(120).default("Sri Seva Connect"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   CORS_ORIGINS: z.string().default(""),
   TRUST_PROXY: z.enum(["true", "false"]).default("false").transform((value) => value === "true")
