@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
+    "expo-router": "~57.0.26",
     "prisma": "^7.10.0",
     "typescript": "^6.0.3"
   },

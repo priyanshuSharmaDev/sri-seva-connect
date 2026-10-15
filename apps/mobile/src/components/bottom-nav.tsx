@@ -3,12 +3,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/constants/design";
 
-type NavKey = "today" | "customers" | "activity" | "more";
+type NavKey = "today" | "customers" | "account";
 const items = [
   { key: "today" as const, label: "Today", symbol: "⌂", href: "/" as const },
   { key: "customers" as const, label: "Customers", symbol: "◎", href: "/customers" as const },
-  { key: "activity" as const, label: "Activity", symbol: "↻", href: "/explore" as const },
-  { key: "more" as const, label: "More", symbol: "•••", href: "/" as const }
+  { key: "account" as const, label: "Account", symbol: "●", href: "/explore" as const }
 ];
 
 export function BottomNav({ active }: { active: NavKey }) {

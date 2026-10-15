@@ -2,64 +2,23 @@ import type { ReactNode } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { ErrorState, LoadingState } from "@/components/screen-state";
 import { colors, radii, shadow, spacing } from "@/constants/design";
-import { customers } from "@/data/demo";
+import { useApiResource } from "@/hooks/use-api-resource";
+import type { CustomerDetail } from "@/types/api";
 
 export default function CustomerDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const customer = customers.find((item) => item.id === id) ?? customers[0]!;
-  const phone = customer.phone.replace(/\s/g, "");
-
-  return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.identity}>
-          <View style={styles.avatar}><Text style={styles.initials}>{customer.initials}</Text></View>
-          <Text style={styles.name}>{customer.name}</Text>
-          <Text style={styles.meta}>{customer.city} · Prefers {customer.language}</Text>
-        </View>
-        <View style={styles.actionRow}>
-          <Action label="Call" symbol="☎" onPress={() => void Linking.openURL(`tel:${phone}`)} />
-          <Action label="WhatsApp" symbol="W" onPress={() => void Linking.openURL(`https://wa.me/${phone.replace("+", "")}`)} />
-          <Action label="SMS" symbol="✉" onPress={() => void Linking.openURL(`sms:${phone}`)} />
-        </View>
-
-        <Section title="Important occasions">
-          <InfoRow title="Birthday" detail="12 October · Today" accent />
-          <InfoRow title="Wedding anniversary" detail="4 February · Remind 7 days before" />
-        </Section>
-        <Section title="Family">
-          <InfoRow title="Priya Shah" detail="Spouse · Birthday 22 December" />
-          <InfoRow title="Aarav Shah" detail="Son · Birthday 8 March" />
-        </Section>
-        <Section title="Recent interaction">
-          <InfoRow title="Birthday call" detail="Last year · Warm conversation, asked about family" />
-        </Section>
-        <Pressable accessibilityRole="button" style={styles.followUpButton}><Text style={styles.followUpText}>+ Schedule a follow-up</Text></Pressable>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  const { id } = useLocalSearchParams<{ id: string }>(); const path = `/v1/customers/${id}` as const; const { data, loading, error, reload } = useApiResource<{ data: CustomerDetail }>(path); const customer = data?.data;
+  if (loading) return <LoadingState label="Loading customer…" />; if (error || !customer) return <ErrorState message={error ?? "Customer not found"} onRetry={() => void reload()} />;
+  const phone = customer.mobileNumber.replace(/\D/g, "");
+  return <SafeAreaView style={styles.safeArea} edges={["bottom"]}><ScrollView contentContainerStyle={styles.content}><View style={styles.identity}><View style={styles.avatar}><Text style={styles.initials}>{initials(customer.fullName)}</Text></View><Text style={styles.name}>{customer.fullName}</Text><Text style={styles.meta}>{[customer.city, customer.preferredLanguage, customer.mobileNumber].filter(Boolean).join(" · ")}</Text></View><View style={styles.actionRow}>{customer.allowPhone && <Action label="Call" symbol="☎" onPress={() => void Linking.openURL(`tel:${customer.mobileNumber}`)} />}{customer.allowWhatsapp && <Action label="WhatsApp" symbol="W" onPress={() => void Linking.openURL(`https://wa.me/${phone}`)} />}{customer.allowSms && <Action label="SMS" symbol="✉" onPress={() => void Linking.openURL(`sms:${customer.mobileNumber}`)} />}</View>
+    <Section title="Important occasions">{customer.occasions.length ? customer.occasions.map((item) => <InfoRow key={item.id} title={item.title} detail={`${item.day}/${item.month}${item.year ? `/${item.year}` : ""} · ${item.kind.replaceAll("_", " ")}`} />) : <InfoRow title="No occasions recorded" detail="Occasions added for this customer will appear here." />}</Section>
+    <Section title="Family">{customer.familyMembers.length ? customer.familyMembers.map((item) => <InfoRow key={item.id} title={item.name} detail={`${item.customRelationship ?? item.relationship}${item.phoneNumber ? ` · ${item.phoneNumber}` : ""}`} />) : <InfoRow title="No family members recorded" detail="Family details have not been added yet." />}</Section>
+    {(customer.profession || customer.company || customer.email || customer.notes) && <Section title="Profile"><InfoRow title={customer.profession ?? "Profile details"} detail={[customer.company, customer.email, customer.notes].filter(Boolean).join(" · ")} /></Section>}
+  </ScrollView></SafeAreaView>;
 }
-
-function Action({ label, symbol, onPress }: { label: string; symbol: string; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.action}><Text style={styles.actionSymbol}>{symbol}</Text><Text style={styles.actionLabel}>{label}</Text></Pressable>;
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text><View style={styles.sectionCard}>{children}</View></View>;
-}
-
-function InfoRow({ title, detail, accent = false }: { title: string; detail: string; accent?: boolean }) {
-  return <View style={styles.infoRow}>{accent && <View style={styles.accentDot} />}<View style={styles.infoCopy}><Text style={styles.infoTitle}>{title}</Text><Text style={styles.infoDetail}>{detail}</Text></View></View>;
-}
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.canvas }, content: { padding: spacing.lg, paddingBottom: 50 },
-  identity: { alignItems: "center", paddingVertical: spacing.lg }, avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.goldPale, alignItems: "center", justifyContent: "center", marginBottom: 12 }, initials: { color: colors.navy, fontWeight: "800", fontSize: 22 },
-  name: { color: colors.ink, fontSize: 23, fontWeight: "800" }, meta: { color: colors.muted, marginTop: 5 },
-  actionRow: { flexDirection: "row", gap: 10, marginBottom: spacing.lg }, action: { flex: 1, backgroundColor: colors.white, borderRadius: radii.md, paddingVertical: 13, alignItems: "center", ...shadow }, actionSymbol: { color: colors.navy, fontSize: 20 }, actionLabel: { color: colors.navy, fontWeight: "700", fontSize: 12, marginTop: 5 },
-  section: { marginTop: spacing.md }, sectionTitle: { color: colors.ink, fontWeight: "800", fontSize: 16, marginBottom: 10 }, sectionCard: { backgroundColor: colors.white, borderRadius: radii.lg, overflow: "hidden" },
-  infoRow: { minHeight: 66, paddingHorizontal: spacing.md, paddingVertical: 13, flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }, accentDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.gold, marginRight: 10 }, infoCopy: { flex: 1 }, infoTitle: { color: colors.ink, fontWeight: "700" }, infoDetail: { color: colors.muted, fontSize: 12, marginTop: 4, lineHeight: 17 },
-  followUpButton: { borderWidth: 1, borderColor: colors.gold, borderRadius: radii.md, alignItems: "center", paddingVertical: 15, marginTop: spacing.xl }, followUpText: { color: colors.navy, fontWeight: "800" }
-});
+function initials(name: string) { return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase(); }
+function Action({ label, symbol, onPress }: { label: string; symbol: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.action}><Text style={styles.actionSymbol}>{symbol}</Text><Text style={styles.actionLabel}>{label}</Text></Pressable>; }
+function Section({ title, children }: { title: string; children: ReactNode }) { return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text><View style={styles.sectionCard}>{children}</View></View>; }
+function InfoRow({ title, detail }: { title: string; detail: string }) { return <View style={styles.infoRow}><Text style={styles.infoTitle}>{title}</Text><Text style={styles.infoDetail}>{detail}</Text></View>; }
+const styles = StyleSheet.create({ safeArea: { flex: 1, backgroundColor: colors.canvas }, content: { padding: spacing.lg, paddingBottom: 50 }, identity: { alignItems: "center", paddingVertical: spacing.lg }, avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.goldPale, alignItems: "center", justifyContent: "center", marginBottom: 12 }, initials: { color: colors.navy, fontWeight: "800", fontSize: 22 }, name: { color: colors.ink, fontSize: 23, fontWeight: "800" }, meta: { color: colors.muted, marginTop: 5, textAlign: "center" }, actionRow: { flexDirection: "row", gap: 10, marginBottom: spacing.lg }, action: { flex: 1, backgroundColor: colors.white, borderRadius: radii.md, paddingVertical: 13, alignItems: "center", ...shadow }, actionSymbol: { color: colors.navy, fontSize: 20 }, actionLabel: { color: colors.navy, fontWeight: "700", fontSize: 12, marginTop: 5 }, section: { marginTop: spacing.md }, sectionTitle: { color: colors.ink, fontWeight: "800", fontSize: 16, marginBottom: 10 }, sectionCard: { backgroundColor: colors.white, borderRadius: radii.lg, overflow: "hidden" }, infoRow: { minHeight: 66, padding: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }, infoTitle: { color: colors.ink, fontWeight: "700" }, infoDetail: { color: colors.muted, fontSize: 12, marginTop: 4, lineHeight: 17 } });

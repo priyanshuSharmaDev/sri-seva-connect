@@ -5,7 +5,8 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 export class ApiError extends Error {
   constructor(
     message: string,
-    readonly status?: number
+    readonly status?: number,
+    readonly code?: string
   ) {
     super(message);
     this.name = "ApiError";
@@ -21,16 +22,22 @@ export async function apiRequest<T>(path: `/${string}`, init: RequestInit = {}):
       ...init,
       headers: {
         Accept: "application/json",
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
         ...init.headers
       },
       signal: init.signal ?? controller.signal
     });
 
     if (!response.ok) {
-      throw new ApiError(`API request failed with status ${response.status}`, response.status);
+      const errorBody = await response.json().catch(() => null) as { error?: { code?: string; message?: string }; message?: string } | null;
+      throw new ApiError(
+        errorBody?.error?.message ?? errorBody?.message ?? `API request failed with status ${response.status}`,
+        response.status,
+        errorBody?.error?.code
+      );
     }
 
-    return await response.json() as T;
+    return response.status === 204 ? undefined as T : await response.json() as T;
   } finally {
     clearTimeout(timeout);
   }

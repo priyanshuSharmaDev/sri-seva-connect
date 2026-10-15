@@ -1,21 +1,23 @@
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radii, shadow, spacing } from "@/constants/design";
-import type { DemoOccasion } from "@/data/demo";
+import type { DashboardOccasion } from "@/types/api";
 
-export function OccasionCard({ occasion }: { occasion: DemoOccasion }) {
-  const phone = occasion.phone.replace(/\D/g, "");
+export function OccasionCard({ occasion }: { occasion: DashboardOccasion }) {
+  const phone = occasion.customer.mobileNumber.replace(/\D/g, "");
+  const displayName = occasion.familyMember?.name ?? occasion.customer.fullName;
+  const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   return (
     <View style={styles.card}>
-      <View style={styles.avatar}><Text style={styles.initials}>{occasion.initials}</Text></View>
+      <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
       <View style={styles.copy}>
-        <Text style={styles.name}>{occasion.name}</Text>
-        <Text style={styles.detail}>{occasion.detail}</Text>
-        <Text style={styles.note}>{occasion.note}</Text>
+        <Text style={styles.name}>{displayName}</Text>
+        <Text style={styles.detail}>{occasion.title}</Text>
+        {occasion.familyMember && <Text style={styles.note}>{occasion.familyMember.relationship} of {occasion.customer.fullName}</Text>}
       </View>
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Call ${occasion.name}`} onPress={() => void Linking.openURL(`tel:${occasion.phone}`)} style={styles.action}><Text style={styles.actionText}>☎</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`WhatsApp ${occasion.name}`} onPress={() => void Linking.openURL(`https://wa.me/${phone}`)} style={[styles.action, styles.whatsapp]}><Text style={styles.whatsappText}>W</Text></Pressable>
+        {occasion.customer.allowPhone && <Pressable accessibilityRole="button" accessibilityLabel={`Call ${displayName}`} onPress={() => void Linking.openURL(`tel:${occasion.customer.mobileNumber}`)} style={styles.action}><Text style={styles.actionText}>☎</Text></Pressable>}
+        {occasion.customer.allowWhatsapp && <Pressable accessibilityRole="button" accessibilityLabel={`WhatsApp ${displayName}`} onPress={() => void Linking.openURL(`https://wa.me/${phone}`)} style={[styles.action, styles.whatsapp]}><Text style={styles.whatsappText}>W</Text></Pressable>}
       </View>
     </View>
   );
