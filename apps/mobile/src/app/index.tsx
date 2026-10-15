@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BottomNav } from "@/components/bottom-nav";
+import { ApiStatus } from "@/components/api-status";
 import { OccasionCard } from "@/components/occasion-card";
 import { SectionHeading } from "@/components/section-heading";
 import { colors, radii, shadow, spacing } from "@/constants/design";
@@ -22,6 +23,7 @@ export default function TodayScreen() {
           <Text style={styles.eyebrow}>{dateLabel.toUpperCase()}</Text>
           <Text style={styles.greeting}>Good morning, Ananya</Text>
           <Text style={styles.subtitle}>A few thoughtful moments are waiting.</Text>
+          <ApiStatus />
         </View>
         <Pressable accessibilityLabel="Open notifications" style={styles.notificationButton}>
           <Text style={styles.notificationIcon}>●</Text>

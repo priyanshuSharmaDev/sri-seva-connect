@@ -51,8 +51,11 @@ npm run dev:api
 npm run dev:mobile
 ```
 
-The API defaults to `http://localhost:4000`. Use the development machine's LAN
-address instead of `localhost` when connecting from a physical Android device.
+The mobile workspace reads `EXPO_PUBLIC_API_URL` from `apps/mobile/.env.local`.
+It currently points to the deployed Render API at
+`https://sri-seva-connect-api.onrender.com`. To use a local API instead, copy
+`apps/mobile/.env.example` to `apps/mobile/.env.local`, replace the URL with the
+development machine's LAN address, and fully reload Expo Go.
 
 ## Quality checks
 
