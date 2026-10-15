@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "react-native";
 
 import { apiRequest, ApiError } from "@/lib/api-client";
 
@@ -31,7 +32,23 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function getWebStorage(): Storage | null {
+  if (typeof globalThis.localStorage === "undefined") return null;
+  return globalThis.localStorage;
+}
+
+async function readSession(): Promise<string | null> {
+  if (Platform.OS === "web") return getWebStorage()?.getItem(SESSION_KEY) ?? null;
+  return SecureStore.getItemAsync(SESSION_KEY);
+}
+
 async function persistSession(session: Session | null): Promise<void> {
+  if (Platform.OS === "web") {
+    const storage = getWebStorage();
+    if (session) storage?.setItem(SESSION_KEY, JSON.stringify(session));
+    else storage?.removeItem(SESSION_KEY);
+    return;
+  }
   if (session) await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
   else await SecureStore.deleteItemAsync(SESSION_KEY);
 }
@@ -49,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    void SecureStore.getItemAsync(SESSION_KEY)
+    void readSession()
       .then((stored) => {
         if (!mounted || !stored) return;
         const restored = JSON.parse(stored) as Session;
