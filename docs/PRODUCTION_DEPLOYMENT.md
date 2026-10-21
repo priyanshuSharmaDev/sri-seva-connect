@@ -75,8 +75,8 @@ The command is idempotent: rerunning it updates that administrator's name and
 password, preserves the organization, activates the `SUPER_ADMIN` membership,
 and revokes existing refresh sessions.
 
-Manager self-registration creates an inactive `REGIONAL_MANAGER` or
-`STORE_MANAGER` membership. A Super Admin must approve it through
+Preacher self-registration creates an inactive `PREACHER` membership. A Super
+Admin must approve it through
 `POST /v1/admin/manager-registrations/:membershipId/approve` before login is
 allowed. Public registration can never request the `SUPER_ADMIN` role.
 

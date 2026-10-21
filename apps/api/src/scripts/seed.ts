@@ -33,8 +33,8 @@ await prisma.organizationMembership.upsert({
 
 await prisma.organizationMembership.upsert({
   where: { organizationId_userId: { organizationId: organization.id, userId: manager.id } },
-  update: { role: "STORE_MANAGER", isActive: true },
-  create: { organizationId: organization.id, userId: manager.id, role: "STORE_MANAGER" }
+  update: { role: "PREACHER", isActive: true },
+  create: { organizationId: organization.id, userId: manager.id, role: "PREACHER" }
 });
 
 console.info("Seeded demo users. Password: Welcome123!");

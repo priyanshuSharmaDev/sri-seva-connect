@@ -48,7 +48,7 @@ beforeEach(() => {
   prismaMock.$transaction.mockImplementation(async (operation) => operation(prismaMock));
 });
 
-async function authorization(role: "STORE_MANAGER" | "SUPER_ADMIN" = "STORE_MANAGER") {
+async function authorization(role: "PREACHER" | "SUPER_ADMIN" = "PREACHER") {
   const accessToken = await createAccessToken({
     userId: "user-1",
     membershipId: "manager-1",
@@ -148,11 +148,21 @@ describe("customer updates", () => {
     expect(prismaMock.auditEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: "CUSTOMER_MARKED_OUT_OF_SERVICE" }) });
   });
 
-  it("soft deletes an accessible customer and emits an offline delete", async () => {
-    prismaMock.customer.findFirst.mockResolvedValue({ id: "customer-1", assignedManagerId: "manager-1" });
+  it("prevents a Preacher from deleting a customer", async () => {
     const response = await request(app)
       .delete("/v1/customers/customer-1")
       .set("authorization", await authorization());
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("FORBIDDEN");
+    expect(prismaMock.customer.update).not.toHaveBeenCalled();
+  });
+
+  it("allows a Super Admin to soft delete a customer and emit an offline delete", async () => {
+    prismaMock.customer.findFirst.mockResolvedValue({ id: "customer-1", assignedManagerId: "manager-1" });
+    const response = await request(app)
+      .delete("/v1/customers/customer-1")
+      .set("authorization", await authorization("SUPER_ADMIN"));
 
     expect(response.status).toBe(204);
     expect(prismaMock.customer.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "customer-1" }, data: expect.objectContaining({ deletedAt: expect.any(Date) }) }));

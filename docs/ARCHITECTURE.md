@@ -2,8 +2,8 @@
 
 ## 1. Product intent
 
-Sri Seva Connect is a mobile-first relationship CRM for Regional Managers and
-Store Managers. Its primary job is to help an assigned manager remember
+Sri Seva Connect is a mobile-first relationship CRM for Preachers. Its primary
+job is to help an assigned Preacher remember
 important moments, contact a customer personally, and retain a trustworthy
 history of that relationship.
 
@@ -28,7 +28,7 @@ Create/import customer
   -> record occasions
   -> configure reminder offsets/contact cadence
   -> synchronize and schedule reminders
-  -> notify assigned manager
+  -> notify assigned Preacher
   -> call, WhatsApp, or SMS
   -> record interaction
   -> optionally schedule follow-up
@@ -92,17 +92,18 @@ duplicating reminder calculations, validation, and permission terminology.
 
 - `Organization` is the tenant boundary.
 - `User` is authenticated independently of role.
-- `OrganizationMembership` assigns `SUPER_ADMIN`, `REGIONAL_MANAGER`, or
-  `STORE_MANAGER` within one organization.
+- `OrganizationMembership` assigns either `SUPER_ADMIN` or `PREACHER` within
+  one organization.
 - A disabled membership immediately loses API and sync access.
 - Short-lived access tokens and rotating refresh tokens are stored securely on
   device. Refresh-token records are revocable and hashed at rest.
 
 ### Customer access
 
-- Every customer has exactly one current `assignedManagerId`.
-- `CustomerShare` grants explicit, revocable access to another manager.
-- A manager may read a customer only when assigned or actively shared.
+- Every customer has exactly one current `assignedManagerId` (the assigned
+  Preacher membership).
+- `CustomerShare` grants explicit, revocable access to another Preacher.
+- A Preacher may read a customer only when assigned or actively shared.
 - Super Admin may read all customers in the organization and transfer
   ownership.
 - Ownership transfer is a single database transaction and emits a domain event
@@ -344,7 +345,8 @@ history. Call, WhatsApp, and SMS are contextual actions. Completing, snoozing,
 or rescheduling is possible directly from a reminder card.
 
 Visual system: navy and white foundations, warm-neutral surfaces, restrained
-gold accents, high-contrast text, minimum 44x44 touch targets, scalable type,
+saffron-gold, lotus, and peacock accents, plus the Gaudiya Vaishnava tilak brand
+mark. Maintain high-contrast text, minimum 44x44 touch targets, scalable type,
 screen-reader labels, visible focus, and non-color-only status indicators.
 
 ## 11. Security and privacy

@@ -207,13 +207,13 @@ export function CustomerForm({ initialValues = emptyCustomerFormValues, error, l
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Contact frequency</Text>
-        <Text style={styles.sectionHint}>Choose how often this manager should contact the customer.</Text>
+        <Text style={styles.sectionHint}>Choose how often the assigned Preacher should contact the customer.</Text>
         <View style={styles.optionRow}>
           {frequencyOptions.map((option) => <ToggleOption key={option.value} label={option.label} active={values.cadence === option.value} onPress={() => select("cadence", option.value)} radio />)}
         </View>
         {values.cadence === "CUSTOM" && <Field label="Repeat every (days)" keyboardType="number-pad" placeholder="For example: 14" {...field("customIntervalDays")} />}
       </View>
-      <Field label="Private manager notes" multiline {...field("notes")} />
+      <Field label="Private Preacher notes" multiline {...field("notes")} />
       <PrimaryButton label={submitLabel} loading={loading} onPress={() => onSubmit(values)} />
     </>
   );

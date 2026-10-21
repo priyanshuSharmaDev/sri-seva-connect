@@ -36,7 +36,7 @@ authRouter.post("/register", async (request, response) => {
   const organization = await prisma.organization.findUnique({ where: { id: env.ORGANIZATION_ID } });
 
   if (!organization) {
-    throw new AppError(503, "REGISTRATION_NOT_READY", "Manager registration is not available yet");
+    throw new AppError(503, "REGISTRATION_NOT_READY", "Preacher registration is not available yet");
   }
 
   try {

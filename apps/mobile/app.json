@@ -4,25 +4,24 @@
     "slug": "sri-seva-connect",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon-spiritual.png",
     "scheme": "sriseva",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/app-icon-spiritual.png"
     },
     "android": {
       "package": "com.sriseva.connect",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0B2341",
+        "foregroundImage": "./assets/images/app-icon-spiritual.png",
+        "monochromeImage": "./assets/images/gaudiya-tilak.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/app-icon-spiritual.png"
     },
     "plugins": [
       "expo-router",
@@ -31,8 +30,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0B2341",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "image": "./assets/images/gaudiya-tilak.png",
+          "imageWidth": 92
         }
       ]
     ],

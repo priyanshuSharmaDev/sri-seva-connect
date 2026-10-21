@@ -22,7 +22,7 @@ function authOf(request: Request): AccessClaims {
 customerRouter.get("/", async (request, response) => {
   const auth = authOf(request);
   if (auth.role === "SUPER_ADMIN") {
-    throw new AppError(403, "MANAGER_SCOPE_REQUIRED", "Super Admin must view contacts through an active manager");
+    throw new AppError(403, "MANAGER_SCOPE_REQUIRED", "Super Admin must view contacts through an active Preacher");
   }
   const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
   const customers = await prisma.customer.findMany({
@@ -54,7 +54,7 @@ customerRouter.post("/", async (request, response) => {
   const auth = authOf(request);
   const input = CreateCustomerSchema.parse(request.body);
   if (auth.role === "SUPER_ADMIN" && !input.assignedManagerId) {
-    throw new AppError(400, "MANAGER_REQUIRED", "Super Admin must assign the customer to a manager");
+    throw new AppError(400, "MANAGER_REQUIRED", "Super Admin must assign the customer to a Preacher");
   }
   const assignedManagerId = auth.role === "SUPER_ADMIN" && input.assignedManagerId
     ? input.assignedManagerId
@@ -65,10 +65,10 @@ customerRouter.post("/", async (request, response) => {
       id: assignedManagerId,
       organizationId: auth.organizationId,
       isActive: true,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     }
   });
-  if (!manager) throw new AppError(400, "INVALID_MANAGER", "Assigned manager is not active in this organization");
+  if (!manager) throw new AppError(400, "INVALID_MANAGER", "Assigned Preacher is not active in this organization");
 
   const preferences = input.communicationPreferences;
   const customer = await prisma.$transaction(async (transaction) => {
@@ -221,6 +221,9 @@ customerRouter.patch("/:customerId", async (request, response) => {
 
 customerRouter.delete("/:customerId", async (request, response) => {
   const auth = authOf(request);
+  if (auth.role !== "SUPER_ADMIN") {
+    throw new AppError(403, "FORBIDDEN", "Only a Super Admin can delete customers");
+  }
   const customer = await prisma.customer.findFirst({
     where: { ...customerAccessWhere(auth), id: request.params.customerId },
     select: { id: true, assignedManagerId: true }
@@ -350,10 +353,10 @@ customerRouter.post("/:customerId/transfer", async (request, response) => {
       id: managerId,
       organizationId: auth.organizationId,
       isActive: true,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     }
   });
-  if (!manager) throw new AppError(400, "INVALID_MANAGER", "Manager is not active in this organization");
+  if (!manager) throw new AppError(400, "INVALID_MANAGER", "Preacher is not active in this organization");
 
   await prisma.$transaction(async (transaction) => {
     const result = await transferCustomerOwnership(transaction, {

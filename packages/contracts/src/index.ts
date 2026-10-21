@@ -2,8 +2,7 @@ import { z } from "zod";
 
 export const RoleSchema = z.enum([
   "SUPER_ADMIN",
-  "REGIONAL_MANAGER",
-  "STORE_MANAGER"
+  "PREACHER"
 ]);
 
 export const CommunicationPreferencesSchema = z.object({
@@ -117,7 +116,7 @@ export const RegisterManagerSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.email(),
   password: z.string().min(12).max(128),
-  role: z.enum(["REGIONAL_MANAGER", "STORE_MANAGER"])
+  role: z.literal("PREACHER").default("PREACHER")
 });
 
 export const ApproveManagerSchema = z.object({

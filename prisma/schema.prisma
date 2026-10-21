@@ -9,8 +9,7 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN
-  REGIONAL_MANAGER
-  STORE_MANAGER
+  PREACHER
 }
 
 enum Gender {

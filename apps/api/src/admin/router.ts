@@ -14,7 +14,7 @@ adminRouter.get("/manager-registrations", async (request, response) => {
     where: {
       organizationId: request.auth!.organizationId,
       isActive: false,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     },
     select: {
       id: true,
@@ -33,7 +33,7 @@ adminRouter.get("/managers", async (request, response) => {
     where: {
       organizationId: request.auth!.organizationId,
       isActive: true,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     },
     select: {
       id: true,
@@ -53,11 +53,11 @@ adminRouter.get("/managers/:managerId/customers", async (request, response) => {
       id: request.params.managerId,
       organizationId: request.auth!.organizationId,
       isActive: true,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     },
     select: { id: true, role: true, user: { select: { fullName: true, email: true } } }
   });
-  if (!manager) throw new AppError(404, "MANAGER_NOT_FOUND", "Active manager was not found");
+  if (!manager) throw new AppError(404, "MANAGER_NOT_FOUND", "Active Preacher was not found");
 
   const customers = await prisma.customer.findMany({
     where: {
@@ -88,13 +88,13 @@ adminRouter.post("/manager-registrations/:membershipId/approve", async (request,
       id: request.params.membershipId,
       organizationId: request.auth!.organizationId,
       isActive: false,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     },
     select: { id: true, userId: true }
   });
 
   if (!registration) {
-    throw new AppError(404, "REGISTRATION_NOT_FOUND", "Pending manager registration was not found");
+    throw new AppError(404, "REGISTRATION_NOT_FOUND", "Pending Preacher registration was not found");
   }
 
   const result = await prisma.$transaction(async (transaction) => {
@@ -105,11 +105,11 @@ adminRouter.post("/manager-registrations/:membershipId/approve", async (request,
           id: input.transferFromManagerId,
           organizationId: request.auth!.organizationId,
           isActive: true,
-          role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+          role: "PREACHER"
         },
         select: { id: true }
       });
-      if (!previousManager) throw new AppError(400, "INVALID_PREVIOUS_MANAGER", "Previous manager is not active in this organization");
+      if (!previousManager) throw new AppError(400, "INVALID_PREVIOUS_MANAGER", "Previous Preacher is not active in this organization");
       const transfer = await transferCustomerOwnership(transaction, {
         organizationId: request.auth!.organizationId,
         fromManagerId: previousManager.id,
@@ -144,18 +144,18 @@ adminRouter.post("/manager-registrations/:membershipId/approve", async (request,
 adminRouter.post("/managers/:managerId/transfer", async (request, response) => {
   const input = TransferManagerCustomersSchema.parse(request.body);
   if (request.params.managerId === input.toManagerId) {
-    throw new AppError(400, "SAME_MANAGER", "Source and destination manager must be different");
+    throw new AppError(400, "SAME_MANAGER", "Source and destination Preacher must be different");
   }
   const managers = await prisma.organizationMembership.findMany({
     where: {
       id: { in: [request.params.managerId, input.toManagerId] },
       organizationId: request.auth!.organizationId,
       isActive: true,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     },
     select: { id: true }
   });
-  if (managers.length !== 2) throw new AppError(400, "INVALID_MANAGER", "Both managers must be active in this organization");
+  if (managers.length !== 2) throw new AppError(400, "INVALID_MANAGER", "Both Preachers must be active in this organization");
 
   const result = await prisma.$transaction(async (transaction) => {
     const transfer = await transferCustomerOwnership(transaction, {
@@ -165,7 +165,7 @@ adminRouter.post("/managers/:managerId/transfer", async (request, response) => {
       ...(input.customerIds && { customerIds: input.customerIds })
     });
     if (input.customerIds && transfer.count !== new Set(input.customerIds).size) {
-      throw new AppError(400, "INVALID_CUSTOMER_SELECTION", "One or more selected customers are not assigned to the source manager");
+      throw new AppError(400, "INVALID_CUSTOMER_SELECTION", "One or more selected customers are not assigned to the source Preacher");
     }
     if (input.deactivateSource) {
       await transaction.organizationMembership.update({
@@ -194,17 +194,17 @@ adminRouter.post("/managers/:managerId/deactivate", async (request, response) =>
       id: request.params.managerId,
       organizationId: request.auth!.organizationId,
       isActive: true,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     },
     select: { id: true, userId: true }
   });
-  if (!manager) throw new AppError(404, "MANAGER_NOT_FOUND", "Active manager was not found");
+  if (!manager) throw new AppError(404, "MANAGER_NOT_FOUND", "Active Preacher was not found");
 
   const assignedCustomers = await prisma.customer.count({
     where: { organizationId: request.auth!.organizationId, assignedManagerId: manager.id, deletedAt: null }
   });
   if (assignedCustomers > 0) {
-    throw new AppError(409, "MANAGER_HAS_CUSTOMERS", "Transfer this manager's customers before removing the manager");
+    throw new AppError(409, "MANAGER_HAS_CUSTOMERS", "Transfer this Preacher's customers before removing the Preacher");
   }
 
   await prisma.$transaction(async (transaction) => {
@@ -230,13 +230,13 @@ adminRouter.post("/manager-registrations/:membershipId/reject", async (request, 
       id: request.params.membershipId,
       organizationId: request.auth!.organizationId,
       isActive: false,
-      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+      role: "PREACHER"
     },
     select: { id: true, userId: true, user: { select: { email: true } } }
   });
 
   if (!registration) {
-    throw new AppError(404, "REGISTRATION_NOT_FOUND", "Pending manager registration was not found");
+    throw new AppError(404, "REGISTRATION_NOT_FOUND", "Pending Preacher registration was not found");
   }
 
   await prisma.$transaction(async (transaction) => {

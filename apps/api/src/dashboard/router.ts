@@ -47,7 +47,7 @@ dashboardRouter.get("/today", async (request, response) => {
           where: {
             organizationId: auth.organizationId,
             isActive: false,
-            role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+            role: "PREACHER"
           }
         })
       : Promise.resolve(0)

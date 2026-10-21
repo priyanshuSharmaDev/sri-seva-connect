@@ -22,7 +22,7 @@ function AuthenticatedNavigator() {
     <Stack screenOptions={{ headerStyle: { backgroundColor: colors.navy }, headerTintColor: colors.white, headerTitleStyle: { fontWeight: "700" }, contentStyle: { backgroundColor: colors.canvas }, headerShadowVisible: false }}>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ title: "Create manager account" }} />
+        <Stack.Screen name="register" options={{ title: "Create Preacher account" }} />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(session)}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -31,9 +31,9 @@ function AuthenticatedNavigator() {
         <Stack.Screen name="customer/[id]" options={{ title: "Customer" }} />
         <Stack.Screen name="customer/edit" options={{ title: "Update Customer" }} />
         <Stack.Screen name="explore" options={{ title: "Account" }} />
-        <Stack.Screen name="manager-approvals" options={{ title: "Manager Approvals" }} />
-        <Stack.Screen name="managers" options={{ title: "Active Managers" }} />
-        <Stack.Screen name="manager-customers" options={{ title: "Manager Contacts" }} />
+        <Stack.Screen name="manager-approvals" options={{ title: "Preacher Approvals" }} />
+        <Stack.Screen name="managers" options={{ title: "Active Preachers" }} />
+        <Stack.Screen name="manager-customers" options={{ title: "Preacher Contacts" }} />
       </Stack.Protected>
     </Stack>
   );

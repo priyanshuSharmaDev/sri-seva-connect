@@ -7,7 +7,7 @@ import { apiRequest, ApiError } from "@/lib/api-client";
 
 const SESSION_KEY = "ssc.auth.session.v1";
 
-export type UserRole = "SUPER_ADMIN" | "REGIONAL_MANAGER" | "STORE_MANAGER";
+export type UserRole = "SUPER_ADMIN" | "PREACHER";
 
 export type Session = {
   accessToken: string;
@@ -25,7 +25,7 @@ type AuthContextValue = {
   session: Session | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (input: { fullName: string; email: string; password: string; role: Exclude<UserRole, "SUPER_ADMIN"> }) => Promise<string>;
+  register: (input: { fullName: string; email: string; password: string }) => Promise<string>;
   logout: () => Promise<void>;
   request: <T>(path: `/${string}`, init?: RequestInit) => Promise<T>;
 };
@@ -86,10 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await saveSession(next);
   }, [saveSession]);
 
-  const register = useCallback(async (input: { fullName: string; email: string; password: string; role: Exclude<UserRole, "SUPER_ADMIN"> }) => {
+  const register = useCallback(async (input: { fullName: string; email: string; password: string }) => {
     const result = await apiRequest<{ status: string; message: string }>("/v1/auth/register", {
       method: "POST",
-      body: JSON.stringify({ ...input, email: input.email.trim().toLowerCase() })
+      body: JSON.stringify({ ...input, email: input.email.trim().toLowerCase(), role: "PREACHER" })
     });
     return result.message;
   }, []);

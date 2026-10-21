@@ -76,7 +76,7 @@ describe("manager registration administration", () => {
   it("prevents managers from viewing pending registrations", async () => {
     const response = await request(app)
       .get("/v1/admin/manager-registrations")
-      .set("authorization", await authorization("STORE_MANAGER"));
+      .set("authorization", await authorization("PREACHER"));
 
     expect(response.status).toBe(403);
     expect(prismaMock.organizationMembership.findMany).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe("manager registration administration", () => {
   it("returns active managers separately without returning their customer records", async () => {
     prismaMock.organizationMembership.findMany.mockResolvedValueOnce([{
       id: "manager-1",
-      role: "STORE_MANAGER",
+      role: "PREACHER",
       createdAt: new Date(),
       user: { fullName: "Manager One", email: "manager@example.com" },
       _count: { assignedCustomers: 12 }

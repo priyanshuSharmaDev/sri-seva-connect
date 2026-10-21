@@ -37,11 +37,11 @@ export default function ManagerApprovalsScreen() {
         method: "POST",
         ...(decision === "approve" && { body: JSON.stringify(transferFromManagerId ? { transferFromManagerId } : {}) })
       });
-      if (decision === "approve") setSuccess(transferFromManagerId ? `Manager approved. ${result.transferredCustomers ?? 0} contacts transferred and the previous manager was deactivated.` : "Manager approved successfully.");
+      if (decision === "approve") setSuccess(transferFromManagerId ? `Preacher approved. ${result.transferredCustomers ?? 0} contacts transferred and the previous Preacher was deactivated.` : "Preacher approved successfully.");
       await reload();
       await reloadManagers();
     } catch (reason) {
-      setActionError(reason instanceof ApiError ? reason.message : `Could not ${decision} manager.`);
+      setActionError(reason instanceof ApiError ? reason.message : `Could not ${decision} Preacher.`);
     } finally {
       setBusyId(null);
     }
@@ -51,12 +51,12 @@ export default function ManagerApprovalsScreen() {
     const previousId = replacements[registration.id];
     if (!previousId) return void decide(registration.id, "approve");
     const previous = activeManagers.find((manager) => manager.id === previousId);
-    const message = `All ${previous?._count.assignedCustomers ?? 0} contacts, pending reminders and follow-ups will move from ${previous?.user.fullName ?? "the previous manager"}. The previous manager will be deactivated.`;
+    const message = `All ${previous?._count.assignedCustomers ?? 0} contacts, pending reminders and follow-ups will move from ${previous?.user.fullName ?? "the previous Preacher"}. The previous Preacher will be deactivated.`;
     if (Platform.OS === "web") {
-      if (globalThis.confirm(`Approve and replace manager?\n\n${message}`)) void decide(registration.id, "approve");
+      if (globalThis.confirm(`Approve and replace Preacher?\n\n${message}`)) void decide(registration.id, "approve");
       return;
     }
-    Alert.alert("Approve and replace manager?", message, [{ text: "Cancel", style: "cancel" }, { text: "Approve & transfer", onPress: () => void decide(registration.id, "approve") }]);
+    Alert.alert("Approve and replace Preacher?", message, [{ text: "Cancel", style: "cancel" }, { text: "Approve & transfer", onPress: () => void decide(registration.id, "approve") }]);
   }
 
   function confirmReject(registration: Registration) {
@@ -76,7 +76,7 @@ export default function ManagerApprovalsScreen() {
   }
 
   if (session?.membership.role !== "SUPER_ADMIN") {
-    return <ErrorState message="Only a Super Admin can access manager approvals." onRetry={() => undefined} />;
+    return <ErrorState message="Only a Super Admin can access Preacher approvals." onRetry={() => undefined} />;
   }
 
   return (
@@ -86,7 +86,7 @@ export default function ManagerApprovalsScreen() {
         {error && <ErrorState message={error} onRetry={() => void reload()} />}
         {actionError && <Text style={styles.error}>{actionError}</Text>}
         {success && <Text style={styles.success}>{success}</Text>}
-        {!loading && !error && registrations.length === 0 && <EmptyState title="No pending registrations" detail="New manager signups will appear here for your approval." />}
+        {!loading && !error && registrations.length === 0 && <EmptyState title="No pending registrations" detail="New Preacher signups will appear here for your approval." />}
         {registrations.map((item) => (
           <View key={item.id} style={styles.card}>
             <Text style={styles.name}>{item.user.fullName}</Text>
@@ -94,7 +94,7 @@ export default function ManagerApprovalsScreen() {
             <Text style={styles.role}>{item.role.replaceAll("_", " ")}</Text>
             <Text style={styles.requested}>Requested {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(item.createdAt))}</Text>
             <Text style={styles.transferLabel}>Contact assignment after approval</Text>
-            <Text style={styles.transferHint}>Choose an existing manager only when this person is replacing them.</Text>
+            <Text style={styles.transferHint}>Optionally choose an existing Preacher if this registration is replacing them. Contacts can also be reassigned later at any time.</Text>
             <View style={styles.managerOptions}>
               <Pressable onPress={() => setReplacements((current) => ({ ...current, [item.id]: null }))} style={[styles.managerOption, !replacements[item.id] && styles.managerOptionActive]}><Text style={[styles.managerOptionText, !replacements[item.id] && styles.managerOptionTextActive]}>No transfer</Text></Pressable>
               {activeManagers.map((manager) => <Pressable key={manager.id} onPress={() => setReplacements((current) => ({ ...current, [item.id]: manager.id }))} style={[styles.managerOption, replacements[item.id] === manager.id && styles.managerOptionActive]}><Text style={[styles.managerOptionText, replacements[item.id] === manager.id && styles.managerOptionTextActive]}>Replace {manager.user.fullName} · {manager._count.assignedCustomers}</Text></Pressable>)}

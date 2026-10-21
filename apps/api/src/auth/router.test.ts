@@ -32,13 +32,13 @@ beforeEach(() => {
   prismaMock.user.create.mockResolvedValue({ id: "user-1" });
 });
 
-describe("manager registration", () => {
-  it("creates an inactive manager membership pending Super Admin approval", async () => {
+describe("preacher registration", () => {
+  it("creates an inactive Preacher membership pending Super Admin approval", async () => {
     const response = await request(app).post("/v1/auth/register").send({
       fullName: "Test Manager",
       email: "Manager@Example.com",
       password: "StrongPassword123!",
-      role: "STORE_MANAGER"
+      role: "PREACHER"
     });
 
     expect(response.status).toBe(201);
@@ -47,7 +47,7 @@ describe("manager registration", () => {
       data: expect.objectContaining({
         email: "manager@example.com",
         memberships: {
-          create: expect.objectContaining({ role: "STORE_MANAGER", isActive: false })
+          create: expect.objectContaining({ role: "PREACHER", isActive: false })
         }
       })
     });
@@ -73,7 +73,7 @@ describe("manager registration", () => {
       fullName: "Existing Manager",
       email: "existing@example.com",
       password: "StrongPassword123!",
-      role: "REGIONAL_MANAGER"
+      role: "PREACHER"
     });
 
     expect(response.status).toBe(409);

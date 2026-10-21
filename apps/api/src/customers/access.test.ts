@@ -8,8 +8,8 @@ const baseClaims = {
 } as const;
 
 describe("customer access scope", () => {
-  it("limits managers to assigned or actively shared customers", () => {
-    const where = customerAccessWhere({ ...baseClaims, role: "STORE_MANAGER" });
+  it("limits Preachers to assigned or actively shared customers", () => {
+    const where = customerAccessWhere({ ...baseClaims, role: "PREACHER" });
 
     expect(where.organizationId).toBe("organization-1");
     expect(where.deletedAt).toBeNull();
