@@ -30,10 +30,12 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY prisma.config.ts ./prisma.config.ts
+COPY prisma ./prisma
 COPY package.json ./package.json
 COPY apps/api/package.json ./apps/api/package.json
 USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:4000/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-CMD ["node", "apps/api/dist/server.js"]
+CMD ["sh", "-c", "npm run db:deploy && node apps/api/dist/server.js"]

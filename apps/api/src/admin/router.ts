@@ -71,6 +71,7 @@ adminRouter.get("/managers/:managerId/customers", async (request, response) => {
       mobileNumber: true,
       city: true,
       preferredLanguage: true,
+      status: true,
       assignedManagerId: true,
       updatedAt: true
     },
@@ -160,8 +161,12 @@ adminRouter.post("/managers/:managerId/transfer", async (request, response) => {
     const transfer = await transferCustomerOwnership(transaction, {
       organizationId: request.auth!.organizationId,
       fromManagerId: request.params.managerId,
-      toManagerId: input.toManagerId
+      toManagerId: input.toManagerId,
+      ...(input.customerIds && { customerIds: input.customerIds })
     });
+    if (input.customerIds && transfer.count !== new Set(input.customerIds).size) {
+      throw new AppError(400, "INVALID_CUSTOMER_SELECTION", "One or more selected customers are not assigned to the source manager");
+    }
     if (input.deactivateSource) {
       await transaction.organizationMembership.update({
         where: { id: request.params.managerId },
@@ -175,12 +180,48 @@ adminRouter.post("/managers/:managerId/transfer", async (request, response) => {
         action: "MANAGER_CUSTOMERS_TRANSFERRED",
         targetType: "OrganizationMembership",
         targetId: request.params.managerId,
-        metadata: { toManagerId: input.toManagerId, transferredCustomers: transfer.count, deactivated: input.deactivateSource }
+        metadata: { toManagerId: input.toManagerId, transferredCustomers: transfer.count, deactivated: input.deactivateSource, partial: Boolean(input.customerIds) }
       }
     });
     return transfer;
   });
   response.json({ status: "transferred", transferredCustomers: result.count });
+});
+
+adminRouter.post("/managers/:managerId/deactivate", async (request, response) => {
+  const manager = await prisma.organizationMembership.findFirst({
+    where: {
+      id: request.params.managerId,
+      organizationId: request.auth!.organizationId,
+      isActive: true,
+      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+    },
+    select: { id: true, userId: true }
+  });
+  if (!manager) throw new AppError(404, "MANAGER_NOT_FOUND", "Active manager was not found");
+
+  const assignedCustomers = await prisma.customer.count({
+    where: { organizationId: request.auth!.organizationId, assignedManagerId: manager.id, deletedAt: null }
+  });
+  if (assignedCustomers > 0) {
+    throw new AppError(409, "MANAGER_HAS_CUSTOMERS", "Transfer this manager's customers before removing the manager");
+  }
+
+  await prisma.$transaction(async (transaction) => {
+    await transaction.organizationMembership.update({ where: { id: manager.id }, data: { isActive: false } });
+    await transaction.refreshSession.updateMany({ where: { membershipId: manager.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    await transaction.auditEvent.create({
+      data: {
+        organizationId: request.auth!.organizationId,
+        actorId: request.auth!.membershipId,
+        action: "MANAGER_DEACTIVATED",
+        targetType: "OrganizationMembership",
+        targetId: manager.id,
+        metadata: { userId: manager.userId }
+      }
+    });
+  });
+  response.json({ status: "deactivated", membershipId: manager.id });
 });
 
 adminRouter.post("/manager-registrations/:membershipId/reject", async (request, response) => {

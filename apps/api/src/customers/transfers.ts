@@ -5,6 +5,7 @@ type TransferScope = {
   organizationId: string;
   toManagerId: string;
   customerId?: string;
+  customerIds?: string[];
   fromManagerId?: string;
 };
 
@@ -14,6 +15,7 @@ export async function transferCustomerOwnership(transaction: Prisma.TransactionC
       organizationId: scope.organizationId,
       deletedAt: null,
       ...(scope.customerId && { id: scope.customerId }),
+      ...(scope.customerIds && { id: { in: [...new Set(scope.customerIds)] } }),
       ...(scope.fromManagerId && { assignedManagerId: scope.fromManagerId })
     },
     select: { id: true, assignedManagerId: true }

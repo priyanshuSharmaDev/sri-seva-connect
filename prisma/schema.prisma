@@ -20,6 +20,11 @@ enum Gender {
   PREFER_NOT_TO_SAY
 }
 
+enum CustomerStatus {
+  ACTIVE
+  OUT_OF_SERVICE
+}
+
 enum FamilyRelationship {
   SPOUSE
   SON
@@ -171,6 +176,7 @@ model Customer {
   pinCode                String?
   preferredLanguage      String?
   notes                  String?
+  status                 CustomerStatus     @default(ACTIVE)
   allowPhone             Boolean            @default(true)
   allowWhatsapp          Boolean            @default(true)
   allowSms               Boolean            @default(true)
@@ -188,6 +194,7 @@ model Customer {
   followUpSeries         FollowUpSeries[]
 
   @@index([organizationId, assignedManagerId, deletedAt])
+  @@index([organizationId, status, deletedAt])
   @@index([organizationId, normalizedMobileNumber])
   @@index([organizationId, fullName])
 }

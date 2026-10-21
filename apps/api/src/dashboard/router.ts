@@ -12,6 +12,7 @@ dashboardRouter.get("/today", async (request, response) => {
   if (!auth) throw new AppError(401, "AUTH_REQUIRED", "Authentication is required");
   const now = new Date();
   const customerScope = customerAccessWhere(auth);
+  const activeCustomerScope = { ...customerScope, status: "ACTIVE" as const };
 
   const [occasions, pendingFollowUps, overdue, customerCount, pendingManagerRegistrations] = await Promise.all([
     prisma.occasion.findMany({
@@ -20,7 +21,7 @@ dashboardRouter.get("/today", async (request, response) => {
         deletedAt: null,
         month: now.getUTCMonth() + 1,
         day: now.getUTCDate(),
-        customer: customerScope,
+        customer: activeCustomerScope,
         ...(auth.role === "SUPER_ADMIN"
           ? {}
           : { OR: [{ visibility: "STANDARD" }, { customer: { assignedManagerId: auth.membershipId } }] })

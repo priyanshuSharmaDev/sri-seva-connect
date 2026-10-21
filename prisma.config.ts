@@ -10,6 +10,6 @@ export default defineConfig({
   datasource: {
     // Keep application traffic on Neon's pooled URL while migrations use the
     // direct connection required for session-level schema operations.
-    url: env("DATABASE_URL_UNPOOLED")
+    url: process.env.DATABASE_URL_UNPOOLED ?? env("DATABASE_URL")
   }
 });

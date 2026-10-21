@@ -74,6 +74,7 @@ const nullableText = z.string().trim().max(500).nullable().optional();
 const nullableDate = z.iso.date().nullable().optional();
 
 export const UpdateCustomerSchema = z.object({
+  status: z.enum(["ACTIVE", "OUT_OF_SERVICE"]).optional(),
   fullName: z.string().trim().min(2).max(120).optional(),
   mobileNumber: z.string().trim().min(7).max(24).optional(),
   alternatePhone: z.string().trim().min(7).max(24).nullable().optional(),
@@ -125,7 +126,12 @@ export const ApproveManagerSchema = z.object({
 
 export const TransferManagerCustomersSchema = z.object({
   toManagerId: z.uuid(),
-  deactivateSource: z.boolean().default(false)
+  deactivateSource: z.boolean().default(false),
+  customerIds: z.array(z.uuid()).min(1).max(500).optional()
+}).superRefine((value, context) => {
+  if (value.deactivateSource && value.customerIds) {
+    context.addIssue({ code: "custom", path: ["deactivateSource"], message: "A partial transfer cannot deactivate the source manager" });
+  }
 });
 
 export type Role = z.infer<typeof RoleSchema>;

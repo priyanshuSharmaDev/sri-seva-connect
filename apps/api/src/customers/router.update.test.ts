@@ -42,6 +42,7 @@ beforeEach(() => {
     fullName: "Updated Customer",
     assignedManagerId: "manager-1"
   });
+
   prismaMock.followUpSeries.findMany.mockResolvedValue([]);
   prismaMock.familyMember.findMany.mockResolvedValue([]);
   prismaMock.$transaction.mockImplementation(async (operation) => operation(prismaMock));
@@ -131,5 +132,30 @@ describe("customer updates", () => {
     }));
     expect(prismaMock.familyMember.update).toHaveBeenCalledOnce();
     expect(prismaMock.familyMember.create).toHaveBeenCalledOnce();
+  });
+
+  it("marks a customer out of service and stops future contact", async () => {
+    prismaMock.customer.findFirst.mockResolvedValue({ id: "customer-1", status: "ACTIVE", assignedManagerId: "manager-1" });
+    prismaMock.customer.update.mockResolvedValue({ id: "customer-1", status: "OUT_OF_SERVICE", fullName: "Customer", assignedManagerId: "manager-1" });
+    const response = await request(app)
+      .patch("/v1/customers/customer-1")
+      .set("authorization", await authorization())
+      .send({ status: "OUT_OF_SERVICE" });
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.followUpSeries.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { active: false } }));
+    expect(prismaMock.reminder.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { state: "CANCELLED", version: { increment: 1 } } }));
+    expect(prismaMock.auditEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: "CUSTOMER_MARKED_OUT_OF_SERVICE" }) });
+  });
+
+  it("soft deletes an accessible customer and emits an offline delete", async () => {
+    prismaMock.customer.findFirst.mockResolvedValue({ id: "customer-1", assignedManagerId: "manager-1" });
+    const response = await request(app)
+      .delete("/v1/customers/customer-1")
+      .set("authorization", await authorization());
+
+    expect(response.status).toBe(204);
+    expect(prismaMock.customer.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "customer-1" }, data: expect.objectContaining({ deletedAt: expect.any(Date) }) }));
+    expect(prismaMock.syncChange.create).toHaveBeenCalledWith({ data: expect.objectContaining({ entityId: "customer-1", operation: "DELETE" }) });
   });
 });

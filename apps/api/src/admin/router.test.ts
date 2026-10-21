@@ -14,11 +14,12 @@ const prismaMock = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn()
   },
-  customer: { findMany: vi.fn(), updateMany: vi.fn() },
+  customer: { findMany: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
   followUpSeries: { updateMany: vi.fn() },
   reminder: { findMany: vi.fn(), update: vi.fn() },
   syncChange: { createMany: vi.fn() },
   user: { deleteMany: vi.fn() },
+  refreshSession: { updateMany: vi.fn() },
   auditEvent: { create: vi.fn() },
   $transaction: vi.fn()
 }));
@@ -47,6 +48,7 @@ beforeEach(() => {
   prismaMock.organizationMembership.findFirst.mockResolvedValue({ id: "membership-2", userId: "user-2", user: { email: "manager@example.com" } });
   prismaMock.organizationMembership.update.mockReturnValue({ operation: "approve" });
   prismaMock.customer.findMany.mockResolvedValue([]);
+  prismaMock.customer.count.mockResolvedValue(0);
   prismaMock.reminder.findMany.mockResolvedValue([]);
   prismaMock.auditEvent.create.mockReturnValue({ operation: "audit" });
   prismaMock.$transaction.mockImplementation(async (operation) => {
@@ -152,6 +154,50 @@ describe("manager registration administration", () => {
       data: { isActive: false }
     });
     expect(prismaMock.syncChange.createMany).toHaveBeenCalledOnce();
+  });
+
+  it("transfers only the selected customers to another active manager", async () => {
+    const sourceId = "9cc434a8-99db-4ffc-b2a4-a33160112d55";
+    const destinationId = "18f4651c-0eb2-4ef1-a1a2-c13be936ae35";
+    const customerId = "c601e9a1-5b77-4b62-a3b7-afd2152c9ab4";
+    prismaMock.organizationMembership.findMany.mockResolvedValue([{ id: sourceId }, { id: destinationId }]);
+    prismaMock.customer.findMany.mockResolvedValue([{ id: customerId, assignedManagerId: sourceId }]);
+
+    const response = await request(app)
+      .post(`/v1/admin/managers/${sourceId}/transfer`)
+      .set("authorization", await authorization("SUPER_ADMIN"))
+      .send({ toManagerId: destinationId, customerIds: [customerId] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.transferredCustomers).toBe(1);
+    expect(prismaMock.customer.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ assignedManagerId: sourceId, id: { in: [customerId] } })
+    }));
+    expect(prismaMock.organizationMembership.update).not.toHaveBeenCalled();
+  });
+
+  it("deactivates a manager with no assigned customers and revokes their sessions", async () => {
+    const managerId = "9cc434a8-99db-4ffc-b2a4-a33160112d55";
+    prismaMock.organizationMembership.findFirst.mockResolvedValue({ id: managerId, userId: "user-2" });
+
+    const response = await request(app)
+      .post(`/v1/admin/managers/${managerId}/deactivate`)
+      .set("authorization", await authorization("SUPER_ADMIN"));
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.organizationMembership.update).toHaveBeenCalledWith({ where: { id: managerId }, data: { isActive: false } });
+    expect(prismaMock.refreshSession.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { membershipId: managerId, revokedAt: null } }));
+  });
+
+  it("requires assigned customers to be transferred before manager removal", async () => {
+    prismaMock.customer.count.mockResolvedValue(2);
+    const response = await request(app)
+      .post("/v1/admin/managers/9cc434a8-99db-4ffc-b2a4-a33160112d55/deactivate")
+      .set("authorization", await authorization("SUPER_ADMIN"));
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe("MANAGER_HAS_CUSTOMERS");
+    expect(prismaMock.organizationMembership.update).not.toHaveBeenCalled();
   });
 
   it("rejects a pending manager, records an audit event, and removes the pending account", async () => {

@@ -8,6 +8,7 @@ import { AppError } from "../lib/errors.js";
 import { customerAccessWhere } from "./access.js";
 import { familyMemberData, synchronizeFamilyMembers } from "./family-members.js";
 import { replaceContactFrequency, scheduleContactFrequency } from "./follow-ups.js";
+import { markCustomerOutOfService, softDeleteCustomer } from "./lifecycle.js";
 import { transferCustomerOwnership } from "./transfers.js";
 
 export const customerRouter = Router();
@@ -39,6 +40,7 @@ customerRouter.get("/", async (request, response) => {
       mobileNumber: true,
       city: true,
       preferredLanguage: true,
+      status: true,
       assignedManagerId: true,
       updatedAt: true
     },
@@ -139,7 +141,7 @@ customerRouter.patch("/:customerId", async (request, response) => {
   const input = UpdateCustomerSchema.parse(request.body);
   const existing = await prisma.customer.findFirst({
     where: { ...customerAccessWhere(auth), id: request.params.customerId },
-    select: { id: true }
+    select: { id: true, status: true, assignedManagerId: true }
   });
   if (!existing) throw new AppError(404, "CUSTOMER_NOT_FOUND", "Customer not found");
 
@@ -147,6 +149,7 @@ customerRouter.patch("/:customerId", async (request, response) => {
     const updated = await transaction.customer.update({
       where: { id: existing.id },
       data: {
+        ...(input.status !== undefined && { status: input.status }),
         ...(input.fullName !== undefined && { fullName: input.fullName }),
         ...(input.mobileNumber !== undefined && {
           mobileNumber: input.mobileNumber,
@@ -174,6 +177,14 @@ customerRouter.patch("/:customerId", async (request, response) => {
         version: { increment: 1 }
       }
     });
+    if (input.status === "OUT_OF_SERVICE" && existing.status !== "OUT_OF_SERVICE") {
+      await markCustomerOutOfService(transaction, {
+        organizationId: auth.organizationId,
+        customerId: updated.id,
+        assignedManagerId: updated.assignedManagerId,
+        actorId: auth.membershipId
+      });
+    }
     if (input.contactFrequency !== undefined) {
       await replaceContactFrequency(transaction, {
         organizationId: auth.organizationId,
@@ -206,6 +217,23 @@ customerRouter.patch("/:customerId", async (request, response) => {
     return updated;
   });
   response.json({ data: customer });
+});
+
+customerRouter.delete("/:customerId", async (request, response) => {
+  const auth = authOf(request);
+  const customer = await prisma.customer.findFirst({
+    where: { ...customerAccessWhere(auth), id: request.params.customerId },
+    select: { id: true, assignedManagerId: true }
+  });
+  if (!customer) throw new AppError(404, "CUSTOMER_NOT_FOUND", "Customer not found");
+
+  await prisma.$transaction((transaction) => softDeleteCustomer(transaction, {
+    organizationId: auth.organizationId,
+    customerId: customer.id,
+    assignedManagerId: customer.assignedManagerId,
+    actorId: auth.membershipId
+  }));
+  response.status(204).send();
 });
 
 customerRouter.get("/:customerId", async (request, response) => {
