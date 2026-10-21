@@ -11,8 +11,10 @@ const prismaMock = vi.hoisted(() => ({
   organizationMembership: {
     findMany: vi.fn(),
     findFirst: vi.fn(),
-    update: vi.fn()
+    update: vi.fn(),
+    delete: vi.fn()
   },
+  user: { deleteMany: vi.fn() },
   auditEvent: { create: vi.fn() },
   $transaction: vi.fn()
 }));
@@ -38,10 +40,13 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.organizationMembership.findMany.mockResolvedValue([]);
-  prismaMock.organizationMembership.findFirst.mockResolvedValue({ id: "membership-2", userId: "user-2" });
+  prismaMock.organizationMembership.findFirst.mockResolvedValue({ id: "membership-2", userId: "user-2", user: { email: "manager@example.com" } });
   prismaMock.organizationMembership.update.mockReturnValue({ operation: "approve" });
   prismaMock.auditEvent.create.mockReturnValue({ operation: "audit" });
-  prismaMock.$transaction.mockResolvedValue([]);
+  prismaMock.$transaction.mockImplementation(async (operation) => {
+    if (typeof operation === "function") return operation(prismaMock);
+    return [];
+  });
 });
 
 async function authorization(role: Role) {
@@ -95,5 +100,23 @@ describe("manager registration administration", () => {
         targetId: "membership-2"
       })
     });
+  });
+
+  it("rejects a pending manager, records an audit event, and removes the pending account", async () => {
+    const response = await request(app)
+      .post("/v1/admin/manager-registrations/membership-2/reject")
+      .set("authorization", await authorization("SUPER_ADMIN"));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: "rejected", membershipId: "membership-2" });
+    expect(prismaMock.auditEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "MANAGER_REGISTRATION_REJECTED",
+        actorId: "user-1",
+        targetId: "membership-2"
+      })
+    });
+    expect(prismaMock.organizationMembership.delete).toHaveBeenCalledWith({ where: { id: "membership-2" } });
+    expect(prismaMock.user.deleteMany).toHaveBeenCalledOnce();
   });
 });

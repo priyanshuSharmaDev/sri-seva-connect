@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReminderDedupeKey, isLeapYear, normalizeIndianPhone, resolveAnnualDate } from "./index.js";
+import { buildReminderDedupeKey, followUpIntervalMinutes, isLeapYear, nextFollowUpAt, normalizeIndianPhone, resolveAnnualDate } from "./index.js";
 
 describe("occasion dates", () => {
   it("recognizes century leap-year rules", () => {
@@ -34,5 +34,23 @@ describe("reminder identity", () => {
 describe("phone normalization", () => {
   it("defaults ten-digit numbers to India", () => {
     expect(normalizeIndianPhone("98765 43210")).toBe("+919876543210");
+    expect(normalizeIndianPhone("09876543210")).toBe("+919876543210");
+  });
+});
+
+describe("follow-up cadence", () => {
+  it("uses a three-and-a-half-day interval for twice-weekly contact", () => {
+    expect(followUpIntervalMinutes("TWICE_WEEKLY")).toBe(5_040);
+  });
+
+  it("advances monthly follow-ups by a calendar month", () => {
+    expect(nextFollowUpAt("MONTHLY", new Date("2026-10-21T09:00:00.000Z")).toISOString())
+      .toBe("2026-11-21T09:00:00.000Z");
+    expect(nextFollowUpAt("MONTHLY", new Date("2027-01-31T09:00:00.000Z")).toISOString())
+      .toBe("2027-02-28T09:00:00.000Z");
+  });
+
+  it("validates custom frequency days", () => {
+    expect(() => followUpIntervalMinutes("CUSTOM", 0)).toThrow("between 1 and 365 days");
   });
 });

@@ -13,7 +13,7 @@ dashboardRouter.get("/today", async (request, response) => {
   const now = new Date();
   const customerScope = customerAccessWhere(auth);
 
-  const [occasions, pendingFollowUps, overdue, customerCount] = await Promise.all([
+  const [occasions, pendingFollowUps, overdue, customerCount, pendingManagerRegistrations] = await Promise.all([
     prisma.occasion.findMany({
       where: {
         organizationId: auth.organizationId,
@@ -35,12 +35,21 @@ dashboardRouter.get("/today", async (request, response) => {
       }
     }),
     prisma.reminder.count({
-      where: { organizationId: auth.organizationId, ownerId: auth.membershipId, state: { in: ["PENDING", "SNOOZED"] }, dueAt: { gte: now } }
+      where: { organizationId: auth.organizationId, ownerId: auth.membershipId, sourceType: "FOLLOW_UP", state: { in: ["PENDING", "SNOOZED"] }, dueAt: { gte: now } }
     }),
     prisma.reminder.count({
       where: { organizationId: auth.organizationId, ownerId: auth.membershipId, state: { in: ["PENDING", "SNOOZED"] }, dueAt: { lt: now } }
     }),
-    prisma.customer.count({ where: customerScope })
+    prisma.customer.count({ where: customerScope }),
+    auth.role === "SUPER_ADMIN"
+      ? prisma.organizationMembership.count({
+          where: {
+            organizationId: auth.organizationId,
+            isActive: false,
+            role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+          }
+        })
+      : Promise.resolve(0)
   ]);
 
   response.json({
@@ -51,7 +60,8 @@ dashboardRouter.get("/today", async (request, response) => {
       familyOccasions: occasions.filter((item) => item.familyMember !== null),
       pendingFollowUps,
       overdueReminders: overdue,
-      customerCount
+      customerCount,
+      pendingManagerRegistrations
     }
   });
 });

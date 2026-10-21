@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import { CreateCustomerSchema, CreateFamilyMemberSchema, CreateOccasionSchema } from "@ssc/contracts";
-import { buildReminderDedupeKey, normalizeIndianPhone } from "@ssc/domain";
+import { buildReminderDedupeKey, followUpIntervalMinutes, nextFollowUpAt, normalizeIndianPhone } from "@ssc/domain";
 import { requireAuth } from "../auth/middleware.js";
 import type { AccessClaims } from "../auth/tokens.js";
 import { prisma } from "../db/client.js";
@@ -106,6 +106,49 @@ customerRouter.post("/", async (request, response) => {
         operation: "UPSERT"
       }
     });
+    if (input.contactFrequency) {
+      const customIntervalMinutes = input.contactFrequency.cadence === "CUSTOM"
+        ? followUpIntervalMinutes("CUSTOM", input.contactFrequency.intervalDays)
+        : null;
+      const nextOccurrenceAt = nextFollowUpAt(
+        input.contactFrequency.cadence,
+        new Date(),
+        input.contactFrequency.cadence === "CUSTOM" ? input.contactFrequency.intervalDays : undefined
+      );
+      const series = await transaction.followUpSeries.create({
+        data: {
+          organizationId: auth.organizationId,
+          customerId: created.id,
+          managerId: assignedManagerId,
+          cadence: input.contactFrequency.cadence,
+          customIntervalMinutes,
+          nextOccurrenceAt
+        }
+      });
+      const occurrenceDate = nextOccurrenceAt.toISOString().slice(0, 10);
+      await transaction.reminder.create({
+        data: {
+          organizationId: auth.organizationId,
+          customerId: created.id,
+          ownerId: assignedManagerId,
+          sourceType: "FOLLOW_UP",
+          sourceId: series.id,
+          occurrenceDate: new Date(`${occurrenceDate}T00:00:00.000Z`),
+          offsetMinutes: 0,
+          originalDueAt: nextOccurrenceAt,
+          dueAt: nextOccurrenceAt,
+          title: `Contact ${created.fullName}`,
+          dedupeKey: buildReminderDedupeKey({
+            organizationId: auth.organizationId,
+            sourceType: "FOLLOW_UP",
+            sourceId: series.id,
+            occurrenceDate,
+            offsetMinutes: 0,
+            ownerId: assignedManagerId
+          })
+        }
+      });
+    }
     return created;
   });
   response.status(201).json({ data: customer });
@@ -117,6 +160,11 @@ customerRouter.get("/:customerId", async (request, response) => {
     where: { ...customerAccessWhere(auth), id: request.params.customerId },
     include: {
       familyMembers: { where: { deletedAt: null }, orderBy: { name: "asc" } },
+      followUpSeries: {
+        where: { active: true },
+        select: { id: true, cadence: true, customIntervalMinutes: true, nextOccurrenceAt: true },
+        orderBy: { nextOccurrenceAt: "asc" }
+      },
       occasions: {
         where: {
           deletedAt: null,

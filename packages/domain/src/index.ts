@@ -51,7 +51,34 @@ export function buildReminderDedupeKey(identity: ReminderIdentity): string {
 export function normalizeIndianPhone(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 11 && digits.startsWith("0")) return `+91${digits.slice(1)}`;
   if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
   if (digits.length >= 7 && digits.length <= 15) return `+${digits}`;
   throw new RangeError("phone number must contain 7 to 15 digits");
+}
+
+export type FollowUpCadence = "WEEKLY" | "TWICE_WEEKLY" | "MONTHLY" | "CUSTOM";
+
+export function followUpIntervalMinutes(cadence: FollowUpCadence, customIntervalDays?: number): number {
+  if (cadence === "WEEKLY") return 7 * 24 * 60;
+  if (cadence === "TWICE_WEEKLY") return Math.round(3.5 * 24 * 60);
+  if (cadence === "MONTHLY") return 30 * 24 * 60;
+  if (!Number.isInteger(customIntervalDays) || customIntervalDays! < 1 || customIntervalDays! > 365) {
+    throw new RangeError("custom follow-up interval must be between 1 and 365 days");
+  }
+  return customIntervalDays! * 24 * 60;
+}
+
+export function nextFollowUpAt(cadence: FollowUpCadence, from: Date, customIntervalDays?: number): Date {
+  const next = new Date(from);
+  if (cadence === "MONTHLY") {
+    const originalDay = next.getUTCDate();
+    next.setUTCDate(1);
+    next.setUTCMonth(next.getUTCMonth() + 1);
+    const lastDayOfTargetMonth = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+    next.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
+    return next;
+  }
+  next.setUTCMinutes(next.getUTCMinutes() + followUpIntervalMinutes(cadence, customIntervalDays));
+  return next;
 }

@@ -12,6 +12,14 @@ export const CommunicationPreferencesSchema = z.object({
   allowSms: z.boolean().default(true)
 });
 
+export const ContactFrequencySchema = z.discriminatedUnion("cadence", [
+  z.object({ cadence: z.enum(["WEEKLY", "TWICE_WEEKLY", "MONTHLY"]) }),
+  z.object({
+    cadence: z.literal("CUSTOM"),
+    intervalDays: z.number().int().min(1).max(365)
+  })
+]);
+
 const optionalText = z.string().trim().max(500).optional();
 const optionalDate = z.iso.date().optional();
 
@@ -31,7 +39,8 @@ export const CreateCustomerSchema = z.object({
   pinCode: z.string().trim().max(12).optional(),
   preferredLanguage: z.string().trim().max(50).optional(),
   notes: z.string().trim().max(5000).optional(),
-  communicationPreferences: CommunicationPreferencesSchema.optional()
+  communicationPreferences: CommunicationPreferencesSchema.optional(),
+  contactFrequency: ContactFrequencySchema.optional()
 });
 
 export const CreateFamilyMemberSchema = z
@@ -83,6 +92,7 @@ export const RegisterManagerSchema = z.object({
 
 export type Role = z.infer<typeof RoleSchema>;
 export type CreateCustomerInput = z.infer<typeof CreateCustomerSchema>;
+export type ContactFrequency = z.infer<typeof ContactFrequencySchema>;
 export type CreateFamilyMemberInput = z.infer<typeof CreateFamilyMemberSchema>;
 export type CreateOccasionInput = z.infer<typeof CreateOccasionSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;

@@ -1,10 +1,10 @@
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radii, shadow, spacing } from "@/constants/design";
+import { phoneUrl, whatsappUrl } from "@/lib/contact-links";
 import type { DashboardOccasion } from "@/types/api";
 
 export function OccasionCard({ occasion }: { occasion: DashboardOccasion }) {
-  const phone = occasion.customer.mobileNumber.replace(/\D/g, "");
   const displayName = occasion.familyMember?.name ?? occasion.customer.fullName;
   const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   return (
@@ -16,8 +16,8 @@ export function OccasionCard({ occasion }: { occasion: DashboardOccasion }) {
         {occasion.familyMember && <Text style={styles.note}>{occasion.familyMember.relationship} of {occasion.customer.fullName}</Text>}
       </View>
       <View style={styles.actions}>
-        {occasion.customer.allowPhone && <Pressable accessibilityRole="button" accessibilityLabel={`Call ${displayName}`} onPress={() => void Linking.openURL(`tel:${occasion.customer.mobileNumber}`)} style={styles.action}><Text style={styles.actionText}>☎</Text></Pressable>}
-        {occasion.customer.allowWhatsapp && <Pressable accessibilityRole="button" accessibilityLabel={`WhatsApp ${displayName}`} onPress={() => void Linking.openURL(`https://wa.me/${phone}`)} style={[styles.action, styles.whatsapp]}><Text style={styles.whatsappText}>W</Text></Pressable>}
+        {occasion.customer.allowPhone && <Pressable accessibilityRole="button" accessibilityLabel={`Call ${displayName}`} onPress={() => void Linking.openURL(phoneUrl(occasion.customer.mobileNumber))} style={styles.action}><Text style={styles.actionText}>☎</Text></Pressable>}
+        {occasion.customer.allowWhatsapp && <Pressable accessibilityRole="button" accessibilityLabel={`WhatsApp ${displayName}`} onPress={() => void Linking.openURL(whatsappUrl(occasion.customer.mobileNumber))} style={[styles.action, styles.whatsapp]}><Text style={styles.whatsappText}>W</Text></Pressable>}
       </View>
     </View>
   );

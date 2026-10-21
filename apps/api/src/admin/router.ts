@@ -60,3 +60,38 @@ adminRouter.post("/manager-registrations/:membershipId/approve", async (request,
 
   response.json({ status: "approved", membershipId: registration.id });
 });
+
+adminRouter.post("/manager-registrations/:membershipId/reject", async (request, response) => {
+  const registration = await prisma.organizationMembership.findFirst({
+    where: {
+      id: request.params.membershipId,
+      organizationId: request.auth!.organizationId,
+      isActive: false,
+      role: { in: ["REGIONAL_MANAGER", "STORE_MANAGER"] }
+    },
+    select: { id: true, userId: true, user: { select: { email: true } } }
+  });
+
+  if (!registration) {
+    throw new AppError(404, "REGISTRATION_NOT_FOUND", "Pending manager registration was not found");
+  }
+
+  await prisma.$transaction(async (transaction) => {
+    await transaction.auditEvent.create({
+      data: {
+        organizationId: request.auth!.organizationId,
+        actorId: request.auth!.userId,
+        action: "MANAGER_REGISTRATION_REJECTED",
+        targetType: "OrganizationMembership",
+        targetId: registration.id,
+        metadata: { userId: registration.userId, email: registration.user.email }
+      }
+    });
+    await transaction.organizationMembership.delete({ where: { id: registration.id } });
+    await transaction.user.deleteMany({
+      where: { id: registration.userId, memberships: { none: {} } }
+    });
+  });
+
+  response.json({ status: "rejected", membershipId: registration.id });
+});
