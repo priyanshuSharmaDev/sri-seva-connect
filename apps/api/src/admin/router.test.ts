@@ -14,6 +14,10 @@ const prismaMock = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn()
   },
+  customer: { findMany: vi.fn(), updateMany: vi.fn() },
+  followUpSeries: { updateMany: vi.fn() },
+  reminder: { findMany: vi.fn(), update: vi.fn() },
+  syncChange: { createMany: vi.fn() },
   user: { deleteMany: vi.fn() },
   auditEvent: { create: vi.fn() },
   $transaction: vi.fn()
@@ -42,6 +46,8 @@ beforeEach(() => {
   prismaMock.organizationMembership.findMany.mockResolvedValue([]);
   prismaMock.organizationMembership.findFirst.mockResolvedValue({ id: "membership-2", userId: "user-2", user: { email: "manager@example.com" } });
   prismaMock.organizationMembership.update.mockReturnValue({ operation: "approve" });
+  prismaMock.customer.findMany.mockResolvedValue([]);
+  prismaMock.reminder.findMany.mockResolvedValue([]);
   prismaMock.auditEvent.create.mockReturnValue({ operation: "audit" });
   prismaMock.$transaction.mockImplementation(async (operation) => {
     if (typeof operation === "function") return operation(prismaMock);
@@ -85,13 +91,30 @@ describe("manager registration administration", () => {
     }));
   });
 
+  it("returns active managers separately without returning their customer records", async () => {
+    prismaMock.organizationMembership.findMany.mockResolvedValueOnce([{
+      id: "manager-1",
+      role: "STORE_MANAGER",
+      createdAt: new Date(),
+      user: { fullName: "Manager One", email: "manager@example.com" },
+      _count: { assignedCustomers: 12 }
+    }]);
+    const response = await request(app)
+      .get("/v1/admin/managers")
+      .set("authorization", await authorization("SUPER_ADMIN"));
+
+    expect(response.status).toBe(200);
+    expect(response.body.managers[0]._count.assignedCustomers).toBe(12);
+    expect(response.body.managers[0].customers).toBeUndefined();
+  });
+
   it("approves a pending manager and writes an audit event", async () => {
     const response = await request(app)
       .post("/v1/admin/manager-registrations/membership-2/approve")
       .set("authorization", await authorization("SUPER_ADMIN"));
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: "approved", membershipId: "membership-2" });
+    expect(response.body).toEqual({ status: "approved", membershipId: "membership-2", transferredCustomers: 0 });
     expect(prismaMock.$transaction).toHaveBeenCalledOnce();
     expect(prismaMock.auditEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -100,6 +123,35 @@ describe("manager registration administration", () => {
         targetId: "membership-2"
       })
     });
+  });
+
+  it("approves a replacement manager and transfers all previous manager contacts", async () => {
+    prismaMock.organizationMembership.findFirst
+      .mockResolvedValueOnce({ id: "membership-2", userId: "user-2", user: { email: "new@example.com" } })
+      .mockResolvedValueOnce({ id: "membership-old" });
+    prismaMock.customer.findMany.mockResolvedValue([
+      { id: "customer-1", assignedManagerId: "membership-old" },
+      { id: "customer-2", assignedManagerId: "membership-old" }
+    ]);
+
+    const response = await request(app)
+      .post("/v1/admin/manager-registrations/membership-2/approve")
+      .set("authorization", await authorization("SUPER_ADMIN"))
+      .send({ transferFromManagerId: "9cc434a8-99db-4ffc-b2a4-a33160112d55" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.transferredCustomers).toBe(2);
+    expect(prismaMock.customer.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ assignedManagerId: "membership-2" })
+    }));
+    expect(prismaMock.followUpSeries.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: { managerId: "membership-2" }
+    }));
+    expect(prismaMock.organizationMembership.update).toHaveBeenCalledWith({
+      where: { id: "membership-old" },
+      data: { isActive: false }
+    });
+    expect(prismaMock.syncChange.createMany).toHaveBeenCalledOnce();
   });
 
   it("rejects a pending manager, records an audit event, and removes the pending account", async () => {

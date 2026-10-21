@@ -1,12 +1,14 @@
 import { Router, type Request } from "express";
 import { CreateCustomerSchema, CreateFamilyMemberSchema, CreateOccasionSchema, UpdateCustomerSchema } from "@ssc/contracts";
-import { buildReminderDedupeKey, normalizeIndianPhone } from "@ssc/domain";
+import { normalizeIndianPhone } from "@ssc/domain";
 import { requireAuth } from "../auth/middleware.js";
 import type { AccessClaims } from "../auth/tokens.js";
 import { prisma } from "../db/client.js";
 import { AppError } from "../lib/errors.js";
 import { customerAccessWhere } from "./access.js";
+import { familyMemberData, synchronizeFamilyMembers } from "./family-members.js";
 import { replaceContactFrequency, scheduleContactFrequency } from "./follow-ups.js";
+import { transferCustomerOwnership } from "./transfers.js";
 
 export const customerRouter = Router();
 customerRouter.use(requireAuth);
@@ -18,6 +20,9 @@ function authOf(request: Request): AccessClaims {
 
 customerRouter.get("/", async (request, response) => {
   const auth = authOf(request);
+  if (auth.role === "SUPER_ADMIN") {
+    throw new AppError(403, "MANAGER_SCOPE_REQUIRED", "Super Admin must view contacts through an active manager");
+  }
   const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
   const customers = await prisma.customer.findMany({
     where: search
@@ -89,6 +94,15 @@ customerRouter.post("/", async (request, response) => {
         allowSms: preferences?.allowSms ?? true
       }
     });
+    if (input.familyMembers?.length) {
+      await transaction.familyMember.createMany({
+        data: input.familyMembers.map((member) => ({
+          organizationId: auth.organizationId,
+          customerId: created.id,
+          ...familyMemberData(member)
+        }))
+      });
+    }
     await transaction.auditEvent.create({
       data: {
         organizationId: auth.organizationId,
@@ -168,6 +182,9 @@ customerRouter.patch("/:customerId", async (request, response) => {
         managerId: updated.assignedManagerId
       }, input.contactFrequency);
     }
+    if (input.familyMembers !== undefined) {
+      await synchronizeFamilyMembers(transaction, auth.organizationId, updated.id, input.familyMembers);
+    }
     await transaction.auditEvent.create({
       data: {
         organizationId: auth.organizationId,
@@ -230,14 +247,7 @@ customerRouter.post("/:customerId/family-members", async (request, response) => 
     data: {
       organizationId: auth.organizationId,
       customerId: customer.id,
-      name: input.name,
-      relationship: input.relationship,
-      customRelationship: input.customRelationship ?? null,
-      dateOfBirth: input.dateOfBirth ? new Date(`${input.dateOfBirth}T00:00:00.000Z`) : null,
-      phoneNumber: input.phoneNumber ?? null,
-      profession: input.profession ?? null,
-      anniversaryDate: input.anniversaryDate ? new Date(`${input.anniversaryDate}T00:00:00.000Z`) : null,
-      notes: input.notes ?? null
+      ...familyMemberData(input)
     }
   });
   response.status(201).json({ data: familyMember });
@@ -318,44 +328,12 @@ customerRouter.post("/:customerId/transfer", async (request, response) => {
   if (!manager) throw new AppError(400, "INVALID_MANAGER", "Manager is not active in this organization");
 
   await prisma.$transaction(async (transaction) => {
-    const result = await transaction.customer.updateMany({
-      where: { id: request.params.customerId, organizationId: auth.organizationId, deletedAt: null },
-      data: { assignedManagerId: managerId, version: { increment: 1 } }
+    const result = await transferCustomerOwnership(transaction, {
+      organizationId: auth.organizationId,
+      customerId: request.params.customerId,
+      toManagerId: managerId
     });
     if (result.count === 0) throw new AppError(404, "CUSTOMER_NOT_FOUND", "Customer not found");
-    const futureReminders = await transaction.reminder.findMany({
-      where: {
-        customerId: request.params.customerId,
-        organizationId: auth.organizationId,
-        state: { in: ["PENDING", "SNOOZED"] },
-        dueAt: { gt: new Date() }
-      },
-      select: {
-        id: true,
-        sourceType: true,
-        sourceId: true,
-        occurrenceDate: true,
-        offsetMinutes: true
-      }
-    });
-    for (const reminder of futureReminders) {
-      const occurrenceDate = reminder.occurrenceDate.toISOString().slice(0, 10);
-      await transaction.reminder.update({
-        where: { id: reminder.id },
-        data: {
-          ownerId: managerId,
-          dedupeKey: buildReminderDedupeKey({
-            organizationId: auth.organizationId,
-            sourceType: reminder.sourceType,
-            sourceId: reminder.sourceId,
-            occurrenceDate,
-            offsetMinutes: reminder.offsetMinutes,
-            ownerId: managerId
-          }),
-          version: { increment: 1 }
-        }
-      });
-    }
     await transaction.auditEvent.create({
       data: {
         organizationId: auth.organizationId,

@@ -32,6 +32,8 @@ function AuthenticatedNavigator() {
         <Stack.Screen name="customer/edit" options={{ title: "Update Customer" }} />
         <Stack.Screen name="explore" options={{ title: "Account" }} />
         <Stack.Screen name="manager-approvals" options={{ title: "Manager Approvals" }} />
+        <Stack.Screen name="managers" options={{ title: "Active Managers" }} />
+        <Stack.Screen name="manager-customers" options={{ title: "Manager Contacts" }} />
       </Stack.Protected>
     </Stack>
   );

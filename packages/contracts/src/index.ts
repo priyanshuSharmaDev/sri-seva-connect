@@ -22,6 +22,32 @@ export const ContactFrequencySchema = z.discriminatedUnion("cadence", [
 
 const optionalText = z.string().trim().max(500).optional();
 const optionalDate = z.iso.date().optional();
+const familyMemberShape = {
+  name: z.string().trim().min(2).max(120),
+  relationship: z.enum(["SPOUSE", "SON", "DAUGHTER", "PARENT", "SIBLING", "CUSTOM"]),
+  customRelationship: z.string().trim().max(50).optional(),
+  dateOfBirth: optionalDate,
+  phoneNumber: z.string().trim().min(7).max(24).optional(),
+  profession: optionalText,
+  anniversaryDate: optionalDate,
+  notes: z.string().trim().max(2000).optional()
+};
+
+function validateFamilyRelationship(
+  value: { relationship: string; customRelationship?: string | undefined },
+  context: z.RefinementCtx
+) {
+  if (value.relationship === "CUSTOM" && !value.customRelationship) {
+    context.addIssue({
+      code: "custom",
+      path: ["customRelationship"],
+      message: "Custom relationship is required"
+    });
+  }
+}
+
+export const CreateFamilyMemberSchema = z.object(familyMemberShape).superRefine(validateFamilyRelationship);
+export const CustomerFamilyMemberSchema = z.object({ id: z.uuid().optional(), ...familyMemberShape }).superRefine(validateFamilyRelationship);
 
 export const CreateCustomerSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -40,7 +66,8 @@ export const CreateCustomerSchema = z.object({
   preferredLanguage: z.string().trim().max(50).optional(),
   notes: z.string().trim().max(5000).optional(),
   communicationPreferences: CommunicationPreferencesSchema.optional(),
-  contactFrequency: ContactFrequencySchema.optional()
+  contactFrequency: ContactFrequencySchema.optional(),
+  familyMembers: z.array(CreateFamilyMemberSchema).max(50).optional()
 });
 
 const nullableText = z.string().trim().max(500).nullable().optional();
@@ -62,29 +89,9 @@ export const UpdateCustomerSchema = z.object({
   preferredLanguage: z.string().trim().max(50).nullable().optional(),
   notes: z.string().trim().max(5000).nullable().optional(),
   communicationPreferences: CommunicationPreferencesSchema.optional(),
-  contactFrequency: ContactFrequencySchema.nullable().optional()
+  contactFrequency: ContactFrequencySchema.nullable().optional(),
+  familyMembers: z.array(CustomerFamilyMemberSchema).max(50).optional()
 }).refine((value) => Object.keys(value).length > 0, { message: "At least one customer field is required" });
-
-export const CreateFamilyMemberSchema = z
-  .object({
-    name: z.string().trim().min(2).max(120),
-    relationship: z.enum(["SPOUSE", "SON", "DAUGHTER", "PARENT", "SIBLING", "CUSTOM"]),
-    customRelationship: z.string().trim().max(50).optional(),
-    dateOfBirth: optionalDate,
-    phoneNumber: z.string().trim().min(7).max(24).optional(),
-    profession: optionalText,
-    anniversaryDate: optionalDate,
-    notes: z.string().trim().max(2000).optional()
-  })
-  .superRefine((value, context) => {
-    if (value.relationship === "CUSTOM" && !value.customRelationship) {
-      context.addIssue({
-        code: "custom",
-        path: ["customRelationship"],
-        message: "Custom relationship is required"
-      });
-    }
-  });
 
 export const CreateOccasionSchema = z.object({
   familyMemberId: z.uuid().optional(),
@@ -112,11 +119,21 @@ export const RegisterManagerSchema = z.object({
   role: z.enum(["REGIONAL_MANAGER", "STORE_MANAGER"])
 });
 
+export const ApproveManagerSchema = z.object({
+  transferFromManagerId: z.uuid().optional()
+});
+
+export const TransferManagerCustomersSchema = z.object({
+  toManagerId: z.uuid(),
+  deactivateSource: z.boolean().default(false)
+});
+
 export type Role = z.infer<typeof RoleSchema>;
 export type CreateCustomerInput = z.infer<typeof CreateCustomerSchema>;
 export type UpdateCustomerInput = z.infer<typeof UpdateCustomerSchema>;
 export type ContactFrequency = z.infer<typeof ContactFrequencySchema>;
 export type CreateFamilyMemberInput = z.infer<typeof CreateFamilyMemberSchema>;
+export type CustomerFamilyMemberInput = z.infer<typeof CustomerFamilyMemberSchema>;
 export type CreateOccasionInput = z.infer<typeof CreateOccasionSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RegisterManagerInput = z.infer<typeof RegisterManagerSchema>;

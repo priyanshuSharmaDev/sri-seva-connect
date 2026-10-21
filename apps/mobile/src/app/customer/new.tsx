@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/auth/auth-context";
-import { CustomerForm, emptyCustomerFormValues, type CustomerFormValues } from "@/components/customer-form";
+import { CustomerForm, emptyCustomerFormValues, familyMembersPayload, validateCustomerForm, type CustomerFormValues } from "@/components/customer-form";
 import { colors, spacing } from "@/constants/design";
 import { ApiError } from "@/lib/api-client";
 
@@ -14,22 +14,16 @@ export default function NewCustomerScreen() {
   const [loading, setLoading] = useState(false);
 
   async function submit(values: CustomerFormValues) {
-    if (values.fullName.trim().length < 2 || values.mobileNumber.trim().length < 7) {
-      setError("Full name and a valid mobile number are required.");
-      return;
-    }
+    const validationError = validateCustomerForm(values);
+    if (validationError) return setError(validationError);
     const intervalDays = Number(values.customIntervalDays);
-    if (values.cadence === "CUSTOM" && (!Number.isInteger(intervalDays) || intervalDays < 1 || intervalDays > 365)) {
-      setError("Custom contact frequency must be between 1 and 365 days.");
-      return;
-    }
 
     setLoading(true);
     setError(null);
     try {
       const profile = Object.fromEntries(
         Object.entries(values).filter(([key, value]) =>
-          !["cadence", "customIntervalDays", "allowPhone", "allowWhatsapp", "allowSms", "gender"].includes(key)
+          !["cadence", "customIntervalDays", "allowPhone", "allowWhatsapp", "allowSms", "gender", "familyMembers"].includes(key)
           && typeof value === "string"
           && value.trim() !== ""
         )
@@ -41,7 +35,8 @@ export default function NewCustomerScreen() {
           allowPhone: values.allowPhone,
           allowWhatsapp: values.allowWhatsapp,
           allowSms: values.allowSms
-        }
+        },
+        familyMembers: familyMembersPayload(values.familyMembers)
       };
       if (values.cadence !== "NONE") {
         body.contactFrequency = values.cadence === "CUSTOM"

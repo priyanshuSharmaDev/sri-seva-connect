@@ -10,6 +10,7 @@ const prismaMock = vi.hoisted(() => ({
   customer: { findFirst: vi.fn(), update: vi.fn() },
   followUpSeries: { findMany: vi.fn(), updateMany: vi.fn() },
   reminder: { updateMany: vi.fn(), create: vi.fn() },
+  familyMember: { findMany: vi.fn(), updateMany: vi.fn(), update: vi.fn(), create: vi.fn() },
   auditEvent: { create: vi.fn() },
   syncChange: { create: vi.fn() },
   $transaction: vi.fn()
@@ -42,15 +43,16 @@ beforeEach(() => {
     assignedManagerId: "manager-1"
   });
   prismaMock.followUpSeries.findMany.mockResolvedValue([]);
+  prismaMock.familyMember.findMany.mockResolvedValue([]);
   prismaMock.$transaction.mockImplementation(async (operation) => operation(prismaMock));
 });
 
-async function authorization() {
+async function authorization(role: "STORE_MANAGER" | "SUPER_ADMIN" = "STORE_MANAGER") {
   const accessToken = await createAccessToken({
     userId: "user-1",
     membershipId: "manager-1",
     organizationId: "organization-1",
-    role: "STORE_MANAGER"
+    role
   });
   return `Bearer ${accessToken}`;
 }
@@ -59,6 +61,14 @@ describe("customer updates", () => {
   it("requires authentication", async () => {
     const response = await request(app).patch("/v1/customers/customer-1").send({ fullName: "Updated Customer" });
     expect(response.status).toBe(401);
+  });
+
+  it("prevents a Super Admin from opening an unscoped all-contacts list", async () => {
+    const response = await request(app)
+      .get("/v1/customers")
+      .set("authorization", await authorization("SUPER_ADMIN"));
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("MANAGER_SCOPE_REQUIRED");
   });
 
   it("updates an accessible customer, clears optional fields, and records sync and audit events", async () => {
@@ -101,5 +111,25 @@ describe("customer updates", () => {
 
     expect(response.status).toBe(404);
     expect(prismaMock.customer.update).not.toHaveBeenCalled();
+  });
+
+  it("creates, updates, and removes family members in the customer update transaction", async () => {
+    prismaMock.familyMember.findMany.mockResolvedValue([{ id: "59e960c9-bb24-4576-9f1c-31f828fb19a5" }, { id: "4931d96d-1bb0-4100-833f-1ff2692fb136" }]);
+    const response = await request(app)
+      .patch("/v1/customers/customer-1")
+      .set("authorization", await authorization())
+      .send({
+        familyMembers: [
+          { id: "59e960c9-bb24-4576-9f1c-31f828fb19a5", name: "Updated Spouse", relationship: "SPOUSE", dateOfBirth: "1991-02-03" },
+          { name: "New Child", relationship: "DAUGHTER" }
+        ]
+      });
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.familyMember.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: { in: ["4931d96d-1bb0-4100-833f-1ff2692fb136"] } })
+    }));
+    expect(prismaMock.familyMember.update).toHaveBeenCalledOnce();
+    expect(prismaMock.familyMember.create).toHaveBeenCalledOnce();
   });
 });

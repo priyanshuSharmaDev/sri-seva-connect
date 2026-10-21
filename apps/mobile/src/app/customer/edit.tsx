@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/auth/auth-context";
-import { CustomerForm, type Cadence, type CustomerFormValues } from "@/components/customer-form";
+import { CustomerForm, familyMembersPayload, validateCustomerForm, type Cadence, type CustomerFormValues } from "@/components/customer-form";
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import { colors, spacing } from "@/constants/design";
 import { useApiResource } from "@/hooks/use-api-resource";
@@ -44,19 +44,25 @@ export default function EditCustomerScreen() {
       : "",
     allowPhone: customer.allowPhone,
     allowWhatsapp: customer.allowWhatsapp,
-    allowSms: customer.allowSms
+    allowSms: customer.allowSms,
+    familyMembers: customer.familyMembers.map((member) => ({
+      id: member.id,
+      localId: `family-${member.id}`,
+      name: member.name,
+      relationship: member.relationship as CustomerFormValues["familyMembers"][number]["relationship"],
+      customRelationship: member.customRelationship ?? "",
+      dateOfBirth: member.dateOfBirth?.slice(0, 10) ?? "",
+      phoneNumber: member.phoneNumber ?? "",
+      profession: member.profession ?? "",
+      anniversaryDate: member.anniversaryDate?.slice(0, 10) ?? "",
+      notes: member.notes ?? ""
+    }))
   };
 
   async function submit(values: CustomerFormValues) {
-    if (values.fullName.trim().length < 2 || values.mobileNumber.trim().length < 7) {
-      setActionError("Full name and a valid mobile number are required.");
-      return;
-    }
+    const validationError = validateCustomerForm(values);
+    if (validationError) return setActionError(validationError);
     const intervalDays = Number(values.customIntervalDays);
-    if (values.cadence === "CUSTOM" && (!Number.isInteger(intervalDays) || intervalDays < 1 || intervalDays > 365)) {
-      setActionError("Custom contact frequency must be between 1 and 365 days.");
-      return;
-    }
 
     setSaving(true);
     setActionError(null);
@@ -84,6 +90,7 @@ export default function EditCustomerScreen() {
             allowWhatsapp: values.allowWhatsapp,
             allowSms: values.allowSms
           },
+          familyMembers: familyMembersPayload(values.familyMembers),
           contactFrequency: values.cadence === "NONE"
             ? null
             : values.cadence === "CUSTOM"
