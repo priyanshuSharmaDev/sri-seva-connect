@@ -43,6 +43,28 @@ export const CreateCustomerSchema = z.object({
   contactFrequency: ContactFrequencySchema.optional()
 });
 
+const nullableText = z.string().trim().max(500).nullable().optional();
+const nullableDate = z.iso.date().nullable().optional();
+
+export const UpdateCustomerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120).optional(),
+  mobileNumber: z.string().trim().min(7).max(24).optional(),
+  alternatePhone: z.string().trim().min(7).max(24).nullable().optional(),
+  email: z.email().nullable().optional(),
+  gender: z.enum(["FEMALE", "MALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]).nullable().optional(),
+  dateOfBirth: nullableDate,
+  profession: nullableText,
+  company: nullableText,
+  address: z.string().trim().max(1000).nullable().optional(),
+  city: nullableText,
+  state: nullableText,
+  pinCode: z.string().trim().max(12).nullable().optional(),
+  preferredLanguage: z.string().trim().max(50).nullable().optional(),
+  notes: z.string().trim().max(5000).nullable().optional(),
+  communicationPreferences: CommunicationPreferencesSchema.optional(),
+  contactFrequency: ContactFrequencySchema.nullable().optional()
+}).refine((value) => Object.keys(value).length > 0, { message: "At least one customer field is required" });
+
 export const CreateFamilyMemberSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
@@ -92,6 +114,7 @@ export const RegisterManagerSchema = z.object({
 
 export type Role = z.infer<typeof RoleSchema>;
 export type CreateCustomerInput = z.infer<typeof CreateCustomerSchema>;
+export type UpdateCustomerInput = z.infer<typeof UpdateCustomerSchema>;
 export type ContactFrequency = z.infer<typeof ContactFrequencySchema>;
 export type CreateFamilyMemberInput = z.infer<typeof CreateFamilyMemberSchema>;
 export type CreateOccasionInput = z.infer<typeof CreateOccasionSchema>;

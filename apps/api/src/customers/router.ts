@@ -1,11 +1,12 @@
 import { Router, type Request } from "express";
-import { CreateCustomerSchema, CreateFamilyMemberSchema, CreateOccasionSchema } from "@ssc/contracts";
-import { buildReminderDedupeKey, followUpIntervalMinutes, nextFollowUpAt, normalizeIndianPhone } from "@ssc/domain";
+import { CreateCustomerSchema, CreateFamilyMemberSchema, CreateOccasionSchema, UpdateCustomerSchema } from "@ssc/contracts";
+import { buildReminderDedupeKey, normalizeIndianPhone } from "@ssc/domain";
 import { requireAuth } from "../auth/middleware.js";
 import type { AccessClaims } from "../auth/tokens.js";
 import { prisma } from "../db/client.js";
 import { AppError } from "../lib/errors.js";
 import { customerAccessWhere } from "./access.js";
+import { replaceContactFrequency, scheduleContactFrequency } from "./follow-ups.js";
 
 export const customerRouter = Router();
 customerRouter.use(requireAuth);
@@ -107,51 +108,87 @@ customerRouter.post("/", async (request, response) => {
       }
     });
     if (input.contactFrequency) {
-      const customIntervalMinutes = input.contactFrequency.cadence === "CUSTOM"
-        ? followUpIntervalMinutes("CUSTOM", input.contactFrequency.intervalDays)
-        : null;
-      const nextOccurrenceAt = nextFollowUpAt(
-        input.contactFrequency.cadence,
-        new Date(),
-        input.contactFrequency.cadence === "CUSTOM" ? input.contactFrequency.intervalDays : undefined
-      );
-      const series = await transaction.followUpSeries.create({
-        data: {
-          organizationId: auth.organizationId,
-          customerId: created.id,
-          managerId: assignedManagerId,
-          cadence: input.contactFrequency.cadence,
-          customIntervalMinutes,
-          nextOccurrenceAt
-        }
-      });
-      const occurrenceDate = nextOccurrenceAt.toISOString().slice(0, 10);
-      await transaction.reminder.create({
-        data: {
-          organizationId: auth.organizationId,
-          customerId: created.id,
-          ownerId: assignedManagerId,
-          sourceType: "FOLLOW_UP",
-          sourceId: series.id,
-          occurrenceDate: new Date(`${occurrenceDate}T00:00:00.000Z`),
-          offsetMinutes: 0,
-          originalDueAt: nextOccurrenceAt,
-          dueAt: nextOccurrenceAt,
-          title: `Contact ${created.fullName}`,
-          dedupeKey: buildReminderDedupeKey({
-            organizationId: auth.organizationId,
-            sourceType: "FOLLOW_UP",
-            sourceId: series.id,
-            occurrenceDate,
-            offsetMinutes: 0,
-            ownerId: assignedManagerId
-          })
-        }
-      });
+      await scheduleContactFrequency(transaction, {
+        organizationId: auth.organizationId,
+        customerId: created.id,
+        customerName: created.fullName,
+        managerId: assignedManagerId
+      }, input.contactFrequency);
     }
     return created;
   });
   response.status(201).json({ data: customer });
+});
+
+customerRouter.patch("/:customerId", async (request, response) => {
+  const auth = authOf(request);
+  const input = UpdateCustomerSchema.parse(request.body);
+  const existing = await prisma.customer.findFirst({
+    where: { ...customerAccessWhere(auth), id: request.params.customerId },
+    select: { id: true }
+  });
+  if (!existing) throw new AppError(404, "CUSTOMER_NOT_FOUND", "Customer not found");
+
+  const customer = await prisma.$transaction(async (transaction) => {
+    const updated = await transaction.customer.update({
+      where: { id: existing.id },
+      data: {
+        ...(input.fullName !== undefined && { fullName: input.fullName }),
+        ...(input.mobileNumber !== undefined && {
+          mobileNumber: input.mobileNumber,
+          normalizedMobileNumber: normalizeIndianPhone(input.mobileNumber)
+        }),
+        ...(input.alternatePhone !== undefined && { alternatePhone: input.alternatePhone }),
+        ...(input.email !== undefined && { email: input.email }),
+        ...(input.gender !== undefined && { gender: input.gender }),
+        ...(input.dateOfBirth !== undefined && {
+          dateOfBirth: input.dateOfBirth ? new Date(`${input.dateOfBirth}T00:00:00.000Z`) : null
+        }),
+        ...(input.profession !== undefined && { profession: input.profession }),
+        ...(input.company !== undefined && { company: input.company }),
+        ...(input.address !== undefined && { address: input.address }),
+        ...(input.city !== undefined && { city: input.city }),
+        ...(input.state !== undefined && { state: input.state }),
+        ...(input.pinCode !== undefined && { pinCode: input.pinCode }),
+        ...(input.preferredLanguage !== undefined && { preferredLanguage: input.preferredLanguage }),
+        ...(input.notes !== undefined && { notes: input.notes }),
+        ...(input.communicationPreferences && {
+          allowPhone: input.communicationPreferences.allowPhone,
+          allowWhatsapp: input.communicationPreferences.allowWhatsapp,
+          allowSms: input.communicationPreferences.allowSms
+        }),
+        version: { increment: 1 }
+      }
+    });
+    if (input.contactFrequency !== undefined) {
+      await replaceContactFrequency(transaction, {
+        organizationId: auth.organizationId,
+        customerId: updated.id,
+        customerName: updated.fullName,
+        managerId: updated.assignedManagerId
+      }, input.contactFrequency);
+    }
+    await transaction.auditEvent.create({
+      data: {
+        organizationId: auth.organizationId,
+        actorId: auth.membershipId,
+        action: "CUSTOMER_UPDATED",
+        targetType: "Customer",
+        targetId: updated.id
+      }
+    });
+    await transaction.syncChange.create({
+      data: {
+        organizationId: auth.organizationId,
+        audienceOwnerId: updated.assignedManagerId,
+        entityType: "Customer",
+        entityId: updated.id,
+        operation: "UPSERT"
+      }
+    });
+    return updated;
+  });
+  response.json({ data: customer });
 });
 
 customerRouter.get("/:customerId", async (request, response) => {
