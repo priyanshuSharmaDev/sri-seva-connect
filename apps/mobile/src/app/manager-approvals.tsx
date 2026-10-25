@@ -1,4 +1,4 @@
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -101,10 +101,10 @@ export default function ManagerApprovalsScreen() {
             </View>
             <View style={styles.actions}>
               <Pressable disabled={busyId !== null} onPress={() => confirmReject(item)} style={[styles.button, styles.rejectButton, busyId !== null && styles.disabled]}>
-                <Text style={styles.rejectText}>Reject</Text>
+                {busyId === item.id && <ActivityIndicator size="small" color="#A12A2A" />}<Text style={styles.rejectText}>{busyId === item.id ? "Rejecting…" : "Reject"}</Text>
               </Pressable>
               <Pressable disabled={busyId !== null} onPress={() => confirmApprove(item)} style={[styles.button, styles.approveButton, busyId !== null && styles.disabled]}>
-                <Text style={styles.approveText}>{busyId === item.id ? "Working…" : "Approve"}</Text>
+                {busyId === item.id && <ActivityIndicator size="small" color={colors.white} />}<Text style={styles.approveText}>{busyId === item.id ? "Working…" : "Approve"}</Text>
               </Pressable>
             </View>
           </View>
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   managerOptionText: { color: colors.ink, fontSize: 11, fontWeight: "700" },
   managerOptionTextActive: { color: colors.white },
   actions: { flexDirection: "row", gap: 10, marginTop: spacing.md },
-  button: { flex: 1, borderRadius: radii.sm, alignItems: "center", padding: 13 },
+  button: { flex: 1, borderRadius: radii.sm, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, padding: 13 },
   approveButton: { backgroundColor: colors.navy },
   rejectButton: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#A12A2A" },
   approveText: { color: colors.white, fontWeight: "800" },

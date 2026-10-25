@@ -14,8 +14,7 @@
       "package": "com.sriseva.connect",
       "adaptiveIcon": {
         "backgroundColor": "#0B2341",
-        "foregroundImage": "./assets/images/app-icon-spiritual.png",
-        "monochromeImage": "./assets/images/gaudiya-tilak.png"
+        "foregroundImage": "./assets/images/app-icon-spiritual.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -33,11 +32,22 @@
           "image": "./assets/images/gaudiya-tilak.png",
           "imageWidth": 92
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "53492d1c-0d59-491d-a7c1-24cc6af17007"
+      }
+    },
+    "owner": "priyanshusharmadevs-team"
   }
 }
