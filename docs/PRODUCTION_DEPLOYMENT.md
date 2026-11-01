@@ -11,6 +11,24 @@ Deploy three independently managed concerns:
 
 Do not run `prisma migrate dev` in production. Production releases use
 `npm run db:deploy` as a release job before replacing API instances.
+The API container must not run migrations in its startup command: Render can
+restart a service independently, and multiple startup migration attempts can
+contend for Prisma's PostgreSQL advisory lock.
+
+### Releasing on Render Free
+
+Render's pre-deploy command and one-off jobs are not available to Free web
+services. Run migrations once from a trusted machine with the production
+environment loaded, then deploy the API from Render. For a release that changes
+the Prisma schema, run `npm run db:deploy` and confirm it succeeds before
+starting the Render deploy. For a code-only release, deploy normally; the API
+starts directly and does not try to acquire a migration lock on each restart.
+
+Do not run two migration commands at the same time. If Prisma reports that it
+cannot acquire its advisory lock, inspect active advisory-lock sessions in the
+Neon SQL Editor and let any active migration finish before retrying. Do not
+terminate a database session unless you have confirmed it is a stale migration
+session.
 
 ## Required production configuration
 
